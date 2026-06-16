@@ -1,181 +1,394 @@
 /* =========================================================
-   GLOBAL THEME
+   AI Gym Coach - Modern Fitness Theme
 ========================================================= */
+
+:root {
+  --bg-0: #060914;
+  --bg-1: #0b1220;
+  --bg-2: #111827;
+  --card: rgba(15, 23, 42, 0.72);
+  --card-strong: rgba(20, 31, 51, 0.88);
+  --border: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(34, 211, 238, 0.3);
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --accent: #22c55e;
+  --accent-2: #38bdf8;
+  --accent-3: #a3e635;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  --radius: 18px;
+}
 
 .stApp {
-  background-color: #0A0D14;
-  color: #fff;
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 34rem),
+    radial-gradient(circle at 80% 10%, rgba(56, 189, 248, 0.14), transparent 30rem),
+    linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 45%, #08111f 100%);
+  color: var(--text);
 }
-
-[data-testid="stSidebar"] {
-  background-color: #111520;
-}
-
-/* =========================================================
-   TYPOGRAPHY (SCOPED – safer)
-========================================================= */
 
 .block-container,
 .block-container * {
-  font-family: 'AdobeClean', sans-serif !important;
+  font-family: 'AdobeClean', Inter, Segoe UI, sans-serif !important;
 }
-
-/* =========================================================
-   LAYOUT
-========================================================= */
 
 .block-container {
-  padding: 50px 3rem !important;
-  max-width: 750px !important;
+  max-width: 1120px !important;
+  padding: 2rem 2rem 4rem !important;
+}
+
+@media (max-width: 768px) {
+  .block-container {
+    padding: 1.2rem 1rem 3rem !important;
+  }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text) !important;
+  letter-spacing: 0 !important;
+}
+
+p, li, span, label {
+  color: inherit;
+}
+
+a {
+  color: var(--accent-2) !important;
+}
+
+hr {
+  border-color: rgba(148, 163, 184, 0.14) !important;
 }
 
 /* =========================================================
-   BUTTONS
+   Sidebar
 ========================================================= */
 
-button,
-.stButton button,
-.stDownloadButton button,
-.MuiBox-root button {
-  background-color: #181D2A !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
+[data-testid="stSidebar"] {
+  background:
+    linear-gradient(180deg, rgba(8, 13, 26, 0.98), rgba(12, 19, 33, 0.96)),
+    radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 18rem);
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+  padding: 1.25rem 1rem;
+}
+
+[data-testid="stSidebar"] h1 {
+  display: none;
+}
+
+.sidebar-brand {
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(17, 24, 39, 0.5));
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+
+.sidebar-brand__kicker,
+.section-kicker {
+  color: var(--accent-3);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-brand__title {
+  color: var(--text);
+  font-size: 1.55rem;
+  font-weight: 800;
+  margin-top: 0.2rem;
+}
+
+.sidebar-brand__caption {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin-top: 0.35rem;
+}
+
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+  font-size: 1rem !important;
+  margin-top: 0.5rem !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stMetric"] {
+  margin-bottom: 0.7rem;
 }
 
 /* =========================================================
-   INPUTS & TEXT ELEMENTS
+   Cards / Sections
 ========================================================= */
 
-input,
-textarea,
-p,
-li,
-code,
-[data-testid="stSelectbox"] > div > div,
-[data-baseweb="select"] > div,
-[data-baseweb="popover"] ul,
-[data-baseweb="menu"] {
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
+.hero,
+.glass-card,
+.workout-card,
+.coach-card,
+.section-shell {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(17, 24, 39, 0.48));
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(2rem, 5vw, 4rem);
+  margin-bottom: 1.4rem;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -45% 30%;
+  height: 16rem;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.22), transparent 64%);
+  pointer-events: none;
+}
+
+.hero h1 {
+  font-size: clamp(2.6rem, 7vw, 5.2rem);
+  line-height: 0.98;
+  margin: 0.35rem 0 1rem;
+}
+
+.hero p {
+  color: #cbd5e1;
+  font-size: clamp(1rem, 2vw, 1.22rem);
+  max-width: 680px;
+}
+
+.callout {
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.15), rgba(56, 189, 248, 0.11));
+  padding: 1rem 1.1rem;
+  color: #dcfce7;
+  margin-top: 1.3rem;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 1.6rem;
+}
+
+.feature-card {
+  min-height: 142px;
+  padding: 1.15rem;
+}
+
+.feature-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.24), rgba(56, 189, 248, 0.2));
+  color: var(--accent-3);
+  font-weight: 800;
+  margin-bottom: 0.85rem;
+}
+
+.feature-card h3,
+.workout-card h2,
+.coach-card h3,
+.section-shell h3 {
+  margin: 0 0 0.45rem;
+}
+
+.feature-card p,
+.workout-card p,
+.coach-card p,
+.section-shell p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.workout-card {
+  padding: 1.35rem;
+  margin-bottom: 1rem;
+}
+
+.workout-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.score-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.12);
+  color: #bbf7d0;
+  font-weight: 800;
+}
+
+.coach-card {
+  padding: 1.15rem 1.25rem;
+  margin: 1rem 0;
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+.section-shell {
+  padding: 1.2rem;
+  margin: 1.1rem 0;
+}
+
+.section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.7rem;
+}
+
+.section-subtitle {
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
+@media (max-width: 900px) {
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding: 1.5rem;
+  }
 }
 
 /* =========================================================
-   METRICS
+   Streamlit Components
 ========================================================= */
 
 [data-testid="stMetric"] {
-  background-color: #181D2A;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 1rem 1.2rem;
-  border-radius: 0;
-}
-
-[data-testid="stMetric"] div {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.86), rgba(30, 41, 59, 0.58));
+  padding: 1rem 1.05rem;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
 }
 
 [data-testid="stMetricValue"] {
-  font-size: 1.5rem !important;
-  font-weight: 400 !important;
+  color: var(--text) !important;
+  font-size: clamp(1.3rem, 2.5vw, 1.9rem) !important;
+  font-weight: 800 !important;
 }
 
 [data-testid="stMetricLabel"] {
-  font-size: 15px !important;
-  opacity: 0.6;
+  color: var(--muted) !important;
+  font-size: 0.9rem !important;
 }
 
-[data-testid="stMetric"] div label p {
-  font-size: 16px !important;
+[data-testid="stAlert"] {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.72);
 }
 
-/* =========================================================
-   CONTAINERS / CARDS
-========================================================= */
+[data-testid="stTable"] {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
 
-.stContainer,
-.stExpander,
-.stTabs,
-.stColumns,
-.stPopover,
-.stAlertContainer,
-.stStatusContainer,
-.stMetric,
-.stTable,
-.stDataFrame,
-.stForm,
-.stSelectbox,
+[data-testid="stDataFrame"] {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Inputs */
 [data-baseweb="select"] > div,
-[data-testid="stForm"],
-[data-testid="stMetric"],
-[data-testid="stNumberInputContainer"],
-[data-testid="stDataFrameColumnMenu"],
-[data-testid="stHeadingWithActionElements"],
-[data-testid="stCaptionContainer"] p,
-[data-testid="stAlertContentInfo"] p,
-[data-testid="stSidebarNavLink"],
-[data-testid="stMarkdownContainer"] h3,
-[data-baseweb="popover"],
-[data-baseweb="menu"],
-div[role="menu"],
-div[role="menuitem"] {
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+textarea {
+  border-radius: 14px !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  background-color: rgba(15, 23, 42, 0.86) !important;
+  color: var(--text) !important;
 }
 
-/* =========================================================
-   DATAFRAME FIX
-========================================================= */
-
-.stDataFrame,
-.stDataFrame div,
-.stDataFrameGlideDataEditor {
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
+[data-baseweb="select"] > div:focus-within,
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stTextInput"] input:focus,
+textarea:focus {
+  border-color: var(--accent-2) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16) !important;
 }
 
-/* =========================================================
-   INTERACTIVE ELEMENTS
-========================================================= */
-
-.stTextInput,
-.stTextArea,
-.stNumberInput,
-.stSlider,
-.stMultiselect,
-.stRadio,
-.stCheckbox,
-.stToggle,
-.stFileUploader,
-.stColorPicker,
-.stDateInput,
-.stTimeInput,
-.stCameraInput,
-[data-testid="stTextInput"] > div,
-[data-testid="stButton"] button,
-[data-testid="stBaseButton-secondaryFormSubmit"],
-[data-testid="stStatusWidget"] {
-  border-radius: 0 !important;
-  font-family: 'AdobeClean', sans-serif !important;
+/* Buttons */
+.stButton > button,
+.stDownloadButton > button,
+button[kind="primary"],
+button[kind="secondary"] {
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)) !important;
+  color: #04111f !important;
+  font-weight: 800 !important;
+  padding: 0.8rem 1.25rem !important;
+  box-shadow: 0 14px 32px rgba(34, 197, 94, 0.24) !important;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease !important;
 }
 
-/* =========================================================
-   MARKDOWN
-========================================================= */
-
-[data-testid="stMarkdownContainer"] strong {
-  font-family: 'AdobeClean', sans-serif !important;
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 18px 42px rgba(56, 189, 248, 0.26) !important;
 }
 
-/* =========================================================
-   FORM
-========================================================= */
+.stButton > button:active,
+.stDownloadButton > button:active {
+  transform: translateY(0);
+}
 
-.stForm {
-  margin-top: 2rem !important;
-  padding: 1.5rem 1rem !important;
-  background-color: #181D2A !important;
-  color: #fff;
+/* Make the end workout button feel serious without harsh red. */
+[data-testid="stSidebar"] .stButton > button {
+  width: 100%;
+}
+
+/* Charts / media */
+[data-testid="stVegaLiteChart"],
+[data-testid="stDeckGlJsonChart"],
+[data-testid="stImage"],
+[data-testid="stVideo"] {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.stAudio {
+  display: none;
+}
+
+/* WebRTC panel */
+[data-testid="stVerticalBlock"] iframe,
+video {
+  border-radius: 18px !important;
+  box-shadow: var(--shadow);
+}
+
+/* Streamlit default top padding polish */
+#MainMenu,
+footer {
+  visibility: hidden;
 }

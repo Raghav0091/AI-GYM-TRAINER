@@ -1,4 +1,5 @@
 import streamlit as st
+import html
 import os
 import time
 import pandas as pd
@@ -17,6 +18,10 @@ from services.coaching.llm import LLMCoach
 from services.coaching.tts import TextToSpeech
 
 from services.coaching.voice_pipeline import VoicePipeline, autoplay_audio
+
+
+def safe_text(value):
+    return html.escape(str(value))
 
 
 def load_environment():
@@ -38,6 +43,113 @@ def get_groq_api_key():
         pass
 
     return api_key
+
+
+def render_section_header(title, subtitle=""):
+    subtitle_html = f"<p class='section-subtitle'>{safe_text(subtitle)}</p>" if subtitle else ""
+    st.markdown(
+        f"""
+        <div class="section-shell">
+            <div class="section-kicker">AI Gym Coach</div>
+            <h2 class="section-title">{safe_text(title)}</h2>
+            {subtitle_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_start_screen():
+    st.markdown(
+        """
+        <section class="hero">
+            <div class="section-kicker">Real-time fitness intelligence</div>
+            <h1>Train Smarter with AI</h1>
+            <p>
+                Get live pose detection, rep counting, form scoring, and AI voice coaching
+                while you move. Pick your workout in the sidebar and let the camera guide
+                your session.
+            </p>
+            <div class="callout">
+                Select your exercise, sets, and reps from the sidebar, then start your workout.
+            </div>
+        </section>
+        <div class="feature-grid">
+            <div class="glass-card feature-card">
+                <div class="feature-icon">01</div>
+                <h3>Real-time Rep Counting</h3>
+                <p>Track reps and sets automatically with MediaPipe pose detection.</p>
+            </div>
+            <div class="glass-card feature-card">
+                <div class="feature-icon">02</div>
+                <h3>AI Voice Feedback</h3>
+                <p>Hear short coaching cues when form needs attention.</p>
+            </div>
+            <div class="glass-card feature-card">
+                <div class="feature-icon">03</div>
+                <h3>Form Score</h3>
+                <p>See a live score out of 100 based on exercise-specific metrics.</p>
+            </div>
+            <div class="glass-card feature-card">
+                <div class="feature-icon">04</div>
+                <h3>Progress Tracking</h3>
+                <p>Review reps, sets, workout time, charts, and history after sessions.</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_workout_header():
+    exercise = st.session_state.get("exercise_type", "Workout")
+    sets_completed = st.session_state.get("sets_completed", 0)
+    target_sets = st.session_state.get("target_sets", 0)
+    reps = st.session_state.get("reps", 0)
+    form_score = st.session_state.get("form_score", 0)
+
+    st.markdown(
+        f"""
+        <div class="workout-card">
+            <div class="workout-card__row">
+                <div>
+                    <div class="section-kicker">Workout in progress</div>
+                    <h2>{safe_text(exercise)}</h2>
+                    <p>{sets_completed} / {target_sets} sets completed | {reps} total reps</p>
+                </div>
+                <div class="score-pill">Form Score {form_score} / 100</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_coach_card(message):
+    st.markdown(
+        f"""
+        <div class="coach-card">
+            <div class="section-kicker">AI Coach</div>
+            <h3>Live Feedback</h3>
+            <p>{safe_text(message)}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_session_summary(summary):
+    st.markdown(
+        f"""
+        <div class="coach-card">
+            <div class="section-kicker">Session Summary</div>
+            <h3>Workout Recap</h3>
+            <p>{safe_text(summary).replace(chr(10), "<br>")}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 
 def setup_voice_pipeline():
@@ -116,7 +228,10 @@ def generate_session_summary(exercise):
 
 
 def render_workout_dashboard(history_rows):
-    st.markdown("#### Workout Dashboard")
+    render_section_header(
+        "Workout Dashboard",
+        "Your total training volume, weekly progress, and exercise mix.",
+    )
 
     df = pd.DataFrame(
         [
@@ -187,6 +302,16 @@ def main():
     workout_started = st.session_state.get("workout_started", False)
     
     with st.sidebar:
+        st.markdown(
+            """
+            <div class="sidebar-brand">
+                <div class="sidebar-brand__kicker">Fitness AI</div>
+                <div class="sidebar-brand__title">Apna AI Coach</div>
+                <div class="sidebar-brand__caption">Plan, train, track, improve.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.title("🏋️‍♂️ Apna AI Coach")
 
         if st.session_state.username:
@@ -294,41 +419,20 @@ def main():
                 st.metric("Torso Angle", f"{st.session_state.torso_angle}°")
                 st.metric("Balance Status", st.session_state.balance_status)
 
-    st.title("AI Real-time GYM Coach")
-    st.markdown("#### Real-time pose detection with proactive AI voice coaching")
- 
     if st.session_state.get("audio_to_play"):
         autoplay_audio(st.session_state.audio_to_play)
 
+    if workout_started:
+        render_workout_header()
+
     if st.session_state.get("coach_feedback"):
-        st.markdown("")
-        st.success(f"🤖 **Coach:** {st.session_state.coach_feedback}")
+        render_coach_card(st.session_state.coach_feedback)
 
     if st.session_state.get("session_summary") and not workout_started:
-        st.markdown("#### AI Session Summary")
-        st.info(st.session_state.session_summary)
+        render_session_summary(st.session_state.session_summary)
 
     if not workout_started:
-        st.markdown(
-            """
-            <div style="
-                border: 10px dashed #444;
-                border-radius: 0px;
-                padding: 48px 32px;
-                text-align: center;
-                color: #888;
-                margin-top: 32px;
-                margin-bottom: 32px;
-            ">
-                <h2 style="color:#ccc; margin-bottom:8px;">👈 Set your workout plan</h2>
-                <p style="font-size:1.05rem;">
-                    Choose your exercise, sets and reps in the sidebar,<br>
-                    then click <strong>Start Workout</strong> to activate the camera and AI coach.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        render_start_screen()
     else:
         context = webrtc_streamer(
             key="exercise-analysis",
@@ -359,7 +463,10 @@ def main():
         render_workout_dashboard(history_rows)
 
         st.divider()
-        st.markdown("#### Workout History")
+        render_section_header(
+            "Workout History",
+            "Your saved sessions remain available below with average form score.",
+        )
 
         arr = [
             {
