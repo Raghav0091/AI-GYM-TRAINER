@@ -38,6 +38,13 @@ def init_db() -> None:
             )
             """
         )
+        columns = [row["name"] for row in conn.execute("PRAGMA table_info(exercises)").fetchall()]
+
+        if "form_score" not in columns:
+            conn.execute("ALTER TABLE exercises ADD COLUMN form_score INTEGER DEFAULT 0")
+
+        if "form_score_samples" not in columns:
+            conn.execute("ALTER TABLE exercises ADD COLUMN form_score_samples INTEGER DEFAULT 0")
 
 
 def get_user(username: str) -> sqlite3.Row:
@@ -68,7 +75,7 @@ def get_or_create_user(username: str) -> sqlite3.Row:
     return user
 
 
-def add_exercise(user_id, exercise_name, reps, sets, time):
+def add_exercise(user_id, exercise_name, reps, sets, time, form_score=0):
     conn = _get_connection()
 
     with conn:
@@ -78,16 +85,28 @@ def add_exercise(user_id, exercise_name, reps, sets, time):
         """, (user_id, exercise_name)).fetchone()
 
         if existing:
+            existing_score = existing["form_score"] or 0
+            existing_samples = existing["form_score_samples"] or 0
+            new_samples = 1 if form_score else 0
+            total_samples = existing_samples + new_samples
+            averaged_score = existing_score
+
+            if total_samples:
+                averaged_score = round(
+                    ((existing_score * existing_samples) + (form_score * new_samples)) / total_samples
+                )
+
             conn.execute("""
                 UPDATE exercises 
-                SET reps = reps + ?, sets = sets + ?, time = time + ?
+                SET reps = reps + ?, sets = sets + ?, time = time + ?,
+                    form_score = ?, form_score_samples = ?
                 WHERE id = ?
-            """, (reps, sets, time, existing['id']))
+            """, (reps, sets, time, averaged_score, total_samples, existing['id']))
         else:
             conn.execute("""
-                INSERT INTO exercises (user_id, exercise_name, sets, reps, time)
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, exercise_name, sets, reps, time))
+                INSERT INTO exercises (user_id, exercise_name, sets, reps, time, form_score, form_score_samples)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, exercise_name, sets, reps, time, form_score, 1 if form_score else 0))
 
 
 def get_users_exercises(user_id):

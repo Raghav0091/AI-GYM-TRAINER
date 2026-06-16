@@ -2,6 +2,7 @@ import streamlit as st
 import time
 from services.config.workout_config import METRICS_FIELDS
 from services.persistence.exercise_repository import add_exercise
+from services.tracking.form_score import update_form_score_state
 
 
 def sync_metrics_update(context):
@@ -39,6 +40,8 @@ def sync_metrics_update(context):
     for key, default in fields.items():
         st.session_state[key] = latest_metrics.get(key, default)
 
+    update_form_score_state(exercise, latest_metrics)
+
     reps_per_set = st.session_state.get("reps_per_set", 0)
     target_sets = st.session_state.get("target_sets", 0)
 
@@ -64,7 +67,14 @@ def sync_metrics_update(context):
         time_taken = now_ts - started_at
         user_id = st.session_state.get("user_id", 0)
 
-        add_exercise(user_id, exercise, newly_completed * reps_per_set, newly_completed, time_taken)
+        add_exercise(
+            user_id,
+            exercise,
+            newly_completed * reps_per_set,
+            newly_completed,
+            time_taken,
+            st.session_state.get("average_form_score", 0),
+        )
 
         if st.session_state.get("voice_pipeline"):
             result = st.session_state.voice_pipeline.process_event(

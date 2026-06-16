@@ -12,13 +12,157 @@ from services.vision.exercise_video_processor import VideoProcessorClass
 from services.tracking.metrics import sync_metrics_update
 from services.persistence.exercise_repository import get_users_exercises
 from groq import Groq
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from services.coaching.llm import LLMCoach
 from services.coaching.tts import TextToSpeech
 
 from services.coaching.voice_pipeline import VoicePipeline, autoplay_audio
 
-  
+
+def load_environment():
+    env_path = find_dotenv(usecwd=True)
+
+    if env_path:
+        load_dotenv(env_path)
+    else:
+        load_dotenv()
+
+
+def get_groq_api_key():
+    api_key = os.environ.get("GROQ_API_KEY", "")
+
+    try:
+        if not api_key and hasattr(st, "secrets") and "GROQ_API_KEY" in st.secrets:
+            api_key = st.secrets["GROQ_API_KEY"]
+    except Exception:
+        pass
+
+    return api_key
+
+
+def setup_voice_pipeline():
+    if "voice_pipeline" in st.session_state:
+        return
+
+    api_key = get_groq_api_key()
+
+    if not api_key:
+        st.session_state.voice_pipeline = None
+        st.warning("GROQ_API_KEY is missing. AI voice coaching and AI summaries are disabled until you add it to .env.")
+        return
+
+    try:
+        groq_client = Groq(api_key=api_key)
+        llm_coach = LLMCoach(groq_client)
+        tts = TextToSpeech()
+        st.session_state.voice_pipeline = VoicePipeline(llm_coach, tts)
+    except Exception as e:
+        st.session_state.voice_pipeline = None
+        st.warning(f"Voice coach failed to load: {e}")
+
+
+def reset_workout_state(plan_exercise, plan_sets, plan_reps):
+    st.session_state.exercise_type = plan_exercise
+    st.session_state.target_sets = int(plan_sets)
+    st.session_state.reps_per_set = int(plan_reps)
+    st.session_state.reps = 0
+    st.session_state.current_set_reps = 0
+    st.session_state.sets_completed = 0
+    st.session_state.form_score = 0
+    st.session_state.form_score_total = 0
+    st.session_state.form_score_samples = 0
+    st.session_state.average_form_score = 0
+    st.session_state.session_summary = ""
+    st.session_state.summary_generated = False
+    st.session_state.workout_started = True
+    st.session_state.set_cycle_started_at = time.time()
+    st.session_state.last_saved_sets_completed = 0
+    st.session_state.last_notified_sets_completed = 0
+    st.session_state.last_notified_workout_complete = False
+
+
+def generate_session_summary(exercise):
+    if st.session_state.get("summary_generated"):
+        return
+
+    sets_completed = st.session_state.get("sets_completed", 0)
+    total_reps = st.session_state.get("reps", 0)
+    form_score = st.session_state.get("average_form_score") or st.session_state.get("form_score", 0)
+    pipeline = st.session_state.get("voice_pipeline")
+
+    if not pipeline:
+        st.session_state.session_summary = (
+            f"AI summary unavailable because GROQ_API_KEY is missing. "
+            f"{exercise}: {sets_completed} sets, {total_reps} reps, form score {form_score}/100."
+        )
+        st.session_state.summary_generated = True
+        return
+
+    try:
+        st.session_state.session_summary = pipeline.llm.summarize_session(
+            exercise=exercise,
+            sets_completed=sets_completed,
+            total_reps=total_reps,
+            form_score=form_score,
+        )
+    except Exception as exc:
+        st.warning(f"AI session summary failed: {exc}")
+        st.session_state.session_summary = (
+            f"{exercise}: {sets_completed} sets, {total_reps} reps, form score {form_score}/100. "
+            "Keep your movement controlled and review form cues before the next session."
+        )
+
+    st.session_state.summary_generated = True
+
+
+def render_workout_dashboard(history_rows):
+    st.markdown("#### Workout Dashboard")
+
+    df = pd.DataFrame(
+        [
+            {
+                "Exercise": row["exercise_name"],
+                "Reps": row["reps"],
+                "Sets": row["sets"],
+                "Time (sec)": row["time"],
+                "Form Score": row["form_score"] if "form_score" in row.keys() else 0,
+                "Date": row["created_at"],
+            }
+            for row in history_rows
+        ]
+    )
+
+    if df.empty:
+        st.info("Complete a workout to unlock your dashboard.")
+        return df
+
+    df["Date"] = pd.to_datetime(df["Date"])
+    total_workouts = len(df)
+    total_reps = int(df["Reps"].sum())
+    total_sets = int(df["Sets"].sum())
+    total_time = int(df["Time (sec)"].sum())
+    best_exercise = df.groupby("Exercise")["Reps"].sum().idxmax()
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Workouts", total_workouts)
+    col2.metric("Total Reps", total_reps)
+    col3.metric("Total Sets", total_sets)
+    col4.metric("Workout Time", f"{total_time // 60}m {total_time % 60}s")
+
+    st.metric("Best Exercise by Reps", best_exercise)
+
+    weekly = df.set_index("Date").resample("W")["Reps"].sum().reset_index()
+    weekly["Week"] = weekly["Date"].dt.strftime("%b %d")
+    st.markdown("##### Weekly Progress")
+    st.line_chart(weekly, x="Week", y="Reps")
+
+    distribution = df.groupby("Exercise", as_index=False)["Reps"].sum()
+    st.markdown("##### Exercise Distribution")
+    st.bar_chart(distribution, x="Exercise", y="Reps")
+
+    return df
+
+
 def main():
     st.set_page_config(
         page_icon="🏋️‍♀️",
@@ -26,7 +170,7 @@ def main():
         initial_sidebar_state="expanded",
         layout="centered"
     )
-    load_dotenv()
+    load_environment()
 
     load_css(os.path.join(os.getcwd(), "static", "style.css"))
     inject_local_font(os.path.join(os.getcwd(), "static", "AdobeClean.otf"), "AdobeClean")
@@ -38,20 +182,7 @@ def main():
 
     initial_session_defaults()
 
-    if "voice_pipeline" not in st.session_state:
-        try:
-            api_key = os.environ.get("GROQ_API_KEY", "")
-
-            if not api_key and hasattr(st, "secrets") and "GROQ_API_KEY" in st.secrets:
-                api_key = st.secrets["GROQ_API_KEY"]
-            
-            groq_client = Groq(api_key=api_key)
-            llm_coach = LLMCoach(groq_client)
-            tts = TextToSpeech()
-            st.session_state.voice_pipeline = VoicePipeline(llm_coach, tts)
-        except Exception as e:
-            st.session_state.voice_pipeline = None
-            st.error(f"Voice coach failed to load: {e}")
+    setup_voice_pipeline()
 
     workout_started = st.session_state.get("workout_started", False)
     
@@ -77,13 +208,7 @@ def main():
             start_session_button = st.button("Start Workout", width="stretch", key="start_session_button")
 
             if start_session_button:
-                st.session_state.exercise_type = plan_exercise
-                st.session_state.target_sets = int(plan_sets)
-                st.session_state.reps_per_set = int(plan_reps)
-                st.session_state.reps = 0
-                st.session_state.workout_started = True
-                st.session_state.set_cycle_started_at = time.time()
-                st.session_state.last_saved_sets_completed = 0
+                reset_workout_state(plan_exercise, plan_sets, plan_reps)
 
                 if st.session_state.voice_pipeline:
                     result = st.session_state.voice_pipeline.process_event(
@@ -95,8 +220,6 @@ def main():
                     if result:
                         st.session_state.audio_to_play, st.session_state.coach_feedback = result
 
-                st.session_state.last_notified_sets_completed = 0
-                st.session_state.last_notified_workout_complete = False
                 st.rerun()
         else:
             exercise = st.session_state.get("exercise_type")
@@ -108,6 +231,7 @@ def main():
             end_session_button = st.button("End Workout", key="end_session_button", width="stretch")
 
             if end_session_button:
+                generate_session_summary(exercise)
                 st.session_state.workout_started = False
                 
                 if st.session_state.voice_pipeline:
@@ -136,6 +260,7 @@ def main():
             st.metric("Total Reps", f"{total_reps}")
             st.metric("Current Set Reps", f"{current_set_reps} / {reps_per_set}")
             st.metric("Sets Completed", f"{sets_completed} / {target_sets}")
+            st.metric("Form Score", f"{st.session_state.get('form_score', 0)} / 100")
 
             st.divider()
 
@@ -178,6 +303,10 @@ def main():
     if st.session_state.get("coach_feedback"):
         st.markdown("")
         st.success(f"🤖 **Coach:** {st.session_state.coach_feedback}")
+
+    if st.session_state.get("session_summary") and not workout_started:
+        st.markdown("#### AI Session Summary")
+        st.info(st.session_state.session_summary)
 
     if not workout_started:
         st.markdown(
@@ -223,12 +352,14 @@ def main():
 
     st.divider()
 
-    st.markdown("#### Workout History")
-
     user_id = st.session_state.get("user_id", 0)
 
     if isinstance(user_id, int):
         history_rows = get_users_exercises(user_id)
+        render_workout_dashboard(history_rows)
+
+        st.divider()
+        st.markdown("#### Workout History")
 
         arr = [
             {
@@ -236,6 +367,7 @@ def main():
                 "Reps": row['reps'],
                 "Sets": row['sets'],
                 "Time (sec)": row['time'],
+                "Form Score": row["form_score"] if "form_score" in row.keys() else 0,
                 "Date": row['created_at']
             }
             for row in history_rows
@@ -248,8 +380,10 @@ def main():
             agg_df = df.groupby(["Exercise", "Date"]).agg({
                 "Reps": 'sum',
                 "Sets": "sum",
-                "Time (sec)": "sum"
+                "Time (sec)": "sum",
+                "Form Score": "mean"
             }).reset_index()
+            agg_df["Form Score"] = agg_df["Form Score"].round(0).astype(int)
             agg_df.index += 1
             st.table(agg_df, border="horizontal")
         else:
@@ -258,4 +392,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

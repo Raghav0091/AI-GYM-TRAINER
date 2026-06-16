@@ -77,8 +77,16 @@ class VoicePipeline:
             if now - self.last_spoken_at < 5:
                 return None
             
-        text = self.llm.give_feedback(event, issue)
+        try:
+            text = self.llm.give_feedback(event, issue)
+        except Exception as exc:
+            st.warning(f"Groq voice coach failed: {exc}")
+            return None
+
         voice = self.tts.speak(text)
+
+        if voice is None and getattr(self.tts, "last_error", None):
+            st.warning(f"gTTS voice playback failed: {self.tts.last_error}")
 
         self.last_spoken_at = now
 

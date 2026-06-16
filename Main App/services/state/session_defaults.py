@@ -14,6 +14,12 @@ def initial_session_defaults():
         "last_saved_sets_completed": 0,
         "set_cycle_started_at": 0.0,
         "last_exercise_type": "Squats",
+        "form_score": 0,
+        "form_score_total": 0,
+        "form_score_samples": 0,
+        "average_form_score": 0,
+        "session_summary": "",
+        "summary_generated": False,
 
         # Workout plan (set before starting)
         "workout_started": False,

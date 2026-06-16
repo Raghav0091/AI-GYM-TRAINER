@@ -1,10 +1,14 @@
 # Python
 __pycache__/
+**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # Virtual environment
 venv/
-.env/
+AI_gym/
+.venv/
 
 # OS files
 .DS_Store
@@ -12,21 +16,15 @@ Thumbs.db
 
 # Database
 Main App/data.db
+data.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Logs
 *.log
 
 .env
 *.env
-AI_gym/
-.venv/
-venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
 .streamlit/secrets.toml
-data.db
-*.db-journal
-.DS_Store
 .vscode/
