@@ -17,6 +17,7 @@ Thumbs.db
 # Database
 Main App/data.db
 data.db
+*.db
 *.db-journal
 *.db-wal
 *.db-shm

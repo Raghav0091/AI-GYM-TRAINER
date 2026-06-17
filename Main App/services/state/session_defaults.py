@@ -47,6 +47,14 @@ def initial_session_defaults():
         "extension_status": "N/A",
         "back_arch_status": "N/A",
         "balance_status": "N/A",
+        "arm_status": "N/A",
+        "foot_status": "N/A",
+        "jumping_jack_stage": "N/A",
+        "knee_height": "N/A",
+        "pace_status": "N/A",
+        "active_knee": "N/A",
+        "range_status": "N/A",
+        "neck_status": "N/A",
     }
 
     for key, value in defaults.items():

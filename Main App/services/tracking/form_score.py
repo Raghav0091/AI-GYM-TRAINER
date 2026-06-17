@@ -48,6 +48,23 @@ def calculate_form_score(exercise, metrics):
             _angle_score(metrics.get("front_knee_angle"), ideal=95, tolerance=60),
             _angle_score(metrics.get("torso_angle"), ideal=165, tolerance=45),
         ]
+    elif exercise == "Jumping Jacks":
+        scores = [
+            _status_score(metrics.get("arm_status"), {"HANDS UP": 100, "RAISE ARMS": 60, "N/A": 70}),
+            _status_score(metrics.get("foot_status"), {"FEET APART": 100, "FEET TOGETHER": 75, "N/A": 70}),
+            _status_score(metrics.get("jumping_jack_stage"), {"OPEN": 100, "CLOSED": 85, "N/A": 70}),
+        ]
+    elif exercise == "High Knees":
+        scores = [
+            _status_score(metrics.get("knee_height"), {"GOOD HEIGHT": 100, "LOW KNEES": 55, "N/A": 70}),
+            _status_score(metrics.get("pace_status"), {"ALTERNATING": 100, "RESET": 75, "N/A": 70}),
+        ]
+    elif exercise == "Crunches":
+        scores = [
+            _status_score(metrics.get("range_status"), {"GOOD CRUNCH": 100, "LOW RANGE": 60, "N/A": 70}),
+            _status_score(metrics.get("neck_status"), {"NEUTRAL NECK": 100, "CHECK POSITION": 65, "N/A": 70}),
+            _angle_score(metrics.get("torso_angle"), ideal=115, tolerance=55),
+        ]
     else:
         scores = [70]
 

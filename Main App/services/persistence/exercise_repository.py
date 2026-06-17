@@ -5,6 +5,11 @@ import hashlib
 import hmac
 import os
 
+try:
+    import bcrypt
+except ImportError:
+    bcrypt = None
+
 _DB_PATH = str(Path(__file__).parent.parent.parent / "data.db")
 
 
@@ -75,13 +80,25 @@ def create_user(username: str) -> sqlite3.Row:
 
 
 def _hash_password(password: str) -> str:
+    if bcrypt is not None:
+        return "bcrypt$" + bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
     salt = os.urandom(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120000)
-    return f"{salt.hex()}:{digest.hex()}"
+    return f"pbkdf2${salt.hex()}:{digest.hex()}"
 
 
 def _verify_password(password: str, stored_hash: str) -> bool:
     try:
+        if stored_hash.startswith("bcrypt$"):
+            if bcrypt is None:
+                return False
+
+            return bcrypt.checkpw(password.encode("utf-8"), stored_hash.removeprefix("bcrypt$").encode("utf-8"))
+
+        if stored_hash.startswith("pbkdf2$"):
+            stored_hash = stored_hash.removeprefix("pbkdf2$")
+
         salt_hex, digest_hex = stored_hash.split(":", 1)
         salt = bytes.fromhex(salt_hex)
         expected = bytes.fromhex(digest_hex)

@@ -3,7 +3,10 @@ EXERCISE_OPTIONS=[
     "Push-ups",
     "Biceps Curls (Dumbbell)",
     "Shoulder Press",
-    "Lunges"
+    "Lunges",
+    "Jumping Jacks",
+    "High Knees",
+    "Crunches",
 ]
 
 
@@ -40,27 +43,143 @@ METRICS_FIELDS = {
         "torso_angle": 0,
         "balance_status": "N/A",
     },
+    "Jumping Jacks": {
+        "arm_status": "N/A",
+        "foot_status": "N/A",
+        "jumping_jack_stage": "N/A",
+    },
+    "High Knees": {
+        "knee_height": "N/A",
+        "pace_status": "N/A",
+        "active_knee": "N/A",
+    },
+    "Crunches": {
+        "torso_angle": 0,
+        "range_status": "N/A",
+        "neck_status": "N/A",
+    },
+}
+
+
+EXERCISE_TUTORIALS = {
+    "Squats": {
+        "description": "A lower-body strength movement focused on controlled hip and knee bending.",
+        "muscles": "Quads, glutes, hamstrings, core",
+        "steps": [
+            "Stand with feet about shoulder-width apart.",
+            "Brace your core and keep your chest lifted.",
+            "Push hips back and bend knees until thighs approach parallel.",
+            "Drive through your heels to stand tall.",
+        ],
+        "mistakes": ["Shallow depth", "Knees collapsing inward", "Leaning too far forward"],
+        "video_url": "https://www.youtube.com/embed/aclHkVaku9U",
+    },
+    "Push-ups": {
+        "description": "A bodyweight upper-body exercise that trains pressing strength and trunk control.",
+        "muscles": "Chest, shoulders, triceps, core",
+        "steps": [
+            "Start in a straight plank with hands under shoulders.",
+            "Lower your chest while keeping hips level.",
+            "Press the floor away until arms are straight.",
+            "Keep your body in one line throughout.",
+        ],
+        "mistakes": ["Sagging hips", "Piked hips", "Half reps"],
+        "video_url": "https://www.youtube.com/embed/IODxDxX7oi4",
+    },
+    "Biceps Curls (Dumbbell)": {
+        "description": "An arm isolation exercise focused on controlled elbow flexion.",
+        "muscles": "Biceps, brachialis, forearms",
+        "steps": [
+            "Stand tall with elbows close to your ribs.",
+            "Curl the weight without swinging your torso.",
+            "Squeeze at the top, then lower with control.",
+            "Keep shoulders quiet and wrists neutral.",
+        ],
+        "mistakes": ["Swinging", "Elbows drifting forward", "Dropping the weight"],
+        "video_url": "https://www.youtube.com/embed/ykJmrZ5v0Oo",
+    },
+    "Shoulder Press": {
+        "description": "A vertical press that develops shoulder strength and overhead control.",
+        "muscles": "Shoulders, triceps, upper chest, core",
+        "steps": [
+            "Start with elbows below wrists near shoulder height.",
+            "Brace your core and keep ribs down.",
+            "Press overhead until arms are extended.",
+            "Lower back to shoulder height with control.",
+        ],
+        "mistakes": ["Excessive back arch", "Partial extension", "Shrugging hard"],
+        "video_url": "https://www.youtube.com/embed/qEwKCR5JCog",
+    },
+    "Lunges": {
+        "description": "A single-leg strength pattern that challenges balance and lower-body control.",
+        "muscles": "Quads, glutes, hamstrings, calves",
+        "steps": [
+            "Step one foot forward with a stable stance.",
+            "Lower until both knees bend under control.",
+            "Keep torso tall and front knee tracking over toes.",
+            "Push through the front foot to stand.",
+        ],
+        "mistakes": ["Losing balance", "Front knee collapsing", "Torso leaning"],
+        "video_url": "https://www.youtube.com/embed/QOVaHwm-Q6U",
+    },
+    "Jumping Jacks": {
+        "description": "A full-body cardio movement using coordinated arm and leg rhythm.",
+        "muscles": "Calves, shoulders, glutes, core",
+        "steps": [
+            "Start tall with feet together and arms by your sides.",
+            "Jump feet out while raising hands overhead.",
+            "Jump back to the starting position.",
+            "Land softly and keep a steady rhythm.",
+        ],
+        "mistakes": ["Low arm raise", "Tiny foot step", "Hard landings"],
+        "video_url": "https://www.youtube.com/embed/c4DAnQ6DtF8",
+    },
+    "High Knees": {
+        "description": "A cardio drill that trains knee drive, rhythm, and core posture.",
+        "muscles": "Hip flexors, quads, calves, core",
+        "steps": [
+            "Stand tall with elbows bent.",
+            "Drive one knee up toward hip height.",
+            "Switch quickly to the other knee.",
+            "Stay light on your feet and keep posture tall.",
+        ],
+        "mistakes": ["Low knees", "Leaning backward", "Slow uneven rhythm"],
+        "video_url": "https://www.youtube.com/embed/oDdkytliOqE",
+    },
+    "Crunches": {
+        "description": "A core exercise focused on controlled spinal flexion.",
+        "muscles": "Rectus abdominis, obliques",
+        "steps": [
+            "Lie down with knees bent and feet planted.",
+            "Brace your core and lift shoulders from the floor.",
+            "Pause briefly at the top.",
+            "Lower with control without pulling your neck.",
+        ],
+        "mistakes": ["Pulling on the neck", "Using momentum", "Very short range"],
+        "video_url": "https://www.youtube.com/embed/Xyd_fa5zoEU",
+    },
 }
 
 
 PROMPT = (
     "You are Apna AI Coach, a professional AI gym trainer monitoring a user's workout via live camera.\n\n"
     "### Your Role\n"
-    "Provide around 10-15 words, high-energy coaching cues. You speak these aloud, so they must be natural and encouraging.\n\n"
+    "Provide short but useful coaching feedback for voice playback. Keep responses to 2-4 sentences.\n\n"
     "### Input Format\n"
     "You receive updates in the format: 'Event: [state] Form Issue: [description]'.\n"
     "- 'Event': workout_started, set_completed, workout_completed, no_pose_detected, ongoing_form_check.\n"
     "- 'Form Issue': A technical description of a pose error (if any).\n\n"
     "### Guidelines\n"
-    "1. Provide feedback in natural, short sentences. Avoid overly brief or fragmented responses.\n"
+    "1. If a form issue is provided, explain what is wrong, why it matters, and how to fix it.\n"
     "2. NO generic greetings or redundant questions. Focus on the workout.\n"
     "3. Use the second person (e.g., 'Straighten your back' instead of 'The user should straighten their back').\n"
-    "4. Maintain a professional coaching tone and prioritize safety.\n\n"
+    "4. End with one short motivational line.\n"
+    "5. Maintain a professional coaching tone and prioritize safety.\n\n"
     "### Scenario Response Styles\n"
     "- 'workout_started' -> A motivating and sharp command to begin.\n"
     "- 'workout_completed' -> A warm and encouraging closing for the session.\n"
     "- 'set_completed' -> Direct praise for finishing the set.\n"
     "- 'no_pose_detected' -> A clear instruction for the user to reposition within the camera frame.\n"
-    "- 'ongoing_form_check' + Form Issue -> A precise, supportive correction for the detected error.\n"
+    "- 'ongoing_form_check' + Form Issue -> Mention the issue, why it matters, and one specific fix.\n"
     "- 'ongoing_form_check' (No Issue) -> Brief, energetic words of encouragement.\n"
 )

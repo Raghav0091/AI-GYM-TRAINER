@@ -3,9 +3,10 @@ import html
 import os
 import time
 import pandas as pd
+import streamlit.components.v1 as components
 from services.auth.login_wall import render_login_wall
 from services.state.session_defaults import initial_session_defaults
-from services.config.workout_config import EXERCISE_OPTIONS
+from services.config.workout_config import EXERCISE_OPTIONS, EXERCISE_TUTORIALS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
 from services.persistence.exercise_repository import init_db
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
@@ -178,6 +179,60 @@ def render_session_summary(summary):
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_exercise_tutorial(exercise):
+    tutorial = EXERCISE_TUTORIALS.get(exercise, {})
+    steps = tutorial.get("steps", [])
+    mistakes = tutorial.get("mistakes", [])
+    muscles = tutorial.get("muscles", "Full body")
+    description = tutorial.get("description", "Tutorial details coming soon.")
+    video_url = tutorial.get("video_url")
+
+    steps_html = "".join(f"<li>{safe_text(step)}</li>" for step in steps)
+    mistakes_html = "".join(f"<li>{safe_text(mistake)}</li>" for mistake in mistakes)
+
+    st.markdown(
+        f"""
+        <div class="tutorial-card">
+            <div class="section-kicker">Exercise Tutorial</div>
+            <h2>{safe_text(exercise)}</h2>
+            <p>{safe_text(description)}</p>
+            <div class="tutorial-meta"><strong>Muscles:</strong> {safe_text(muscles)}</div>
+            <div class="tutorial-columns">
+                <div>
+                    <h3>How to perform</h3>
+                    <ol>{steps_html}</ol>
+                </div>
+                <div>
+                    <h3>Common mistakes</h3>
+                    <ul>{mistakes_html}</ul>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if video_url:
+        components.html(
+            f"""
+            <div style="position:relative;width:100%;padding-top:56.25%;border-radius:24px;overflow:hidden;border:1px solid rgba(255,255,255,.09);background:#1A1A1A;">
+                <iframe src="{safe_text(video_url)}" title="{safe_text(exercise)} demo video" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            </div>
+            """,
+            height=360,
+        )
+    else:
+        st.markdown(
+            """
+            <div class="tutorial-card tutorial-placeholder">
+                <h3>Demo video coming soon.</h3>
+                <p>This exercise still includes instructions and live camera analysis.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 
@@ -372,9 +427,11 @@ def main():
         if not workout_started:
             plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
 
-            plan_sets = st.number_input("Sets", min_value=0, max_value=50, key="plan_sets", step=1)
+            st.caption("Minimum 1 set and 5 reps required.")
 
-            plan_reps = st.number_input("Reps per Set", min_value=0, max_value=50, key="plan_reps", step=1)
+            plan_sets = st.number_input("Sets", min_value=1, max_value=50, key="plan_sets", step=1)
+
+            plan_reps = st.number_input("Reps per Set", min_value=5, max_value=50, key="plan_reps", step=1)
 
             st.markdown("")
 
@@ -473,6 +530,24 @@ def main():
                 st.metric("Torso Angle", f"{st.session_state.torso_angle}°")
                 st.metric("Balance Status", st.session_state.balance_status)
 
+            elif exercise == "Jumping Jacks":
+                st.subheader("Jumping Jack Metrics")
+                st.metric("Arm Status", st.session_state.arm_status)
+                st.metric("Foot Status", st.session_state.foot_status)
+                st.metric("Stage", st.session_state.jumping_jack_stage)
+
+            elif exercise == "High Knees":
+                st.subheader("High Knee Metrics")
+                st.metric("Knee Height", st.session_state.knee_height)
+                st.metric("Pace", st.session_state.pace_status)
+                st.metric("Active Knee", st.session_state.active_knee)
+
+            elif exercise == "Crunches":
+                st.subheader("Crunch Metrics")
+                st.metric("Torso Angle", f"{st.session_state.torso_angle}Â°")
+                st.metric("Range", st.session_state.range_status)
+                st.metric("Neck", st.session_state.neck_status)
+
     if st.session_state.get("audio_to_play") and not st.session_state.get("audio_played", False):
         autoplay_audio(st.session_state.audio_to_play)
 
@@ -488,22 +563,34 @@ def main():
 
     if not workout_started:
         render_start_screen()
+        render_exercise_tutorial(st.session_state.get("plan_exercise", "Squats"))
     else:
-        context = webrtc_streamer(
-            key="exercise-analysis",
-            mode=WebRtcMode.SENDRECV,
-            video_processor_factory=VideoProcessorClass,
-            rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-            media_stream_constraints={
-                "video": True,
-                "audio": False
-            },
-            async_processing=True
-        )
+        exercise_key = st.session_state.get("exercise_type", "exercise").lower()
+        exercise_key = "".join(ch if ch.isalnum() else "-" for ch in exercise_key).strip("-")
+
+        try:
+            context = webrtc_streamer(
+                key=f"exercise-analysis-{exercise_key}",
+                mode=WebRtcMode.SENDRECV,
+                video_processor_factory=VideoProcessorClass,
+                rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                media_stream_constraints={
+                    "video": True,
+                    "audio": False
+                },
+                async_processing=True
+            )
+        except Exception as exc:
+            st.error(f"Camera/WebRTC failed to start: {exc}")
+            st.info("Check browser camera permission, close other apps using the webcam, then restart the workout.")
+            context = None
 
         sync_metrics_update(context)
 
-        if context.state.playing and time.time() >= st.session_state.get("audio_pause_until", 0.0):
+        if context and not context.state.playing:
+            st.info("Camera is not streaming yet. Click Start in the camera panel and allow browser camera permission.")
+
+        if context and context.state.playing and time.time() >= st.session_state.get("audio_pause_until", 0.0):
             time.sleep(1.0)
             st.rerun()
 

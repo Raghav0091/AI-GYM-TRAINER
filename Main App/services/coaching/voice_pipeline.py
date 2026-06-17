@@ -61,6 +61,31 @@ class VoicePipeline:
             if balance == "OFF BALANCE":
                 return "The user is losing balance during the lunge — feet should be hip-width apart."
 
+        elif exercise == "Jumping Jacks":
+            arms = metrics.get("arm_status", "")
+            feet = metrics.get("foot_status", "")
+
+            if arms == "RAISE ARMS":
+                return "Your arms are not reaching overhead. Raise your hands higher so each rep uses your shoulders and keeps the rhythm strong."
+
+            if feet == "FEET TOGETHER":
+                return "Your feet are not opening wide enough. Jump to a wider stance, land softly, and keep the movement light."
+
+        elif exercise == "High Knees":
+            knee_height = metrics.get("knee_height", "")
+
+            if knee_height == "LOW KNEES":
+                return "Your knees are staying low. Drive each knee closer to hip height to build intensity and engage your core."
+
+        elif exercise == "Crunches":
+            crunch_range = metrics.get("range_status", "")
+            neck = metrics.get("neck_status", "")
+
+            if crunch_range == "LOW RANGE":
+                return "Your crunch range is a little short. Lift your shoulders higher with control so your abs do more of the work."
+
+            if neck == "CHECK POSITION":
+                return "Your neck position is hard to read. Keep your chin slightly tucked and lift from your ribs, not your head."
         return None
 
     def process_event(self, event, exercise, metrics):
@@ -74,7 +99,7 @@ class VoicePipeline:
             if not issue:
                 return None
             
-            if now - self.last_spoken_at < 5:
+            if now - self.last_spoken_at < 10:
                 return None
             
         try:

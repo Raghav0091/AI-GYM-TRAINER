@@ -603,6 +603,41 @@ button[kind="secondaryFormSubmit"]:hover {
   box-shadow: 0 22px 70px rgba(139, 92, 246, 0.15), var(--shadow);
 }
 
+.tutorial-card {
+  margin: 1.2rem 0;
+  padding: 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: linear-gradient(145deg, rgba(26, 26, 26, 0.94), rgba(22, 22, 22, 0.76));
+  box-shadow: var(--shadow);
+}
+
+.tutorial-card h2,
+.tutorial-card h3 {
+  margin-top: 0;
+}
+
+.tutorial-meta {
+  margin: 0.9rem 0;
+  color: #F5F5F5;
+}
+
+.tutorial-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.tutorial-card li {
+  color: var(--muted);
+  margin: 0.35rem 0;
+}
+
+.tutorial-placeholder {
+  border-style: dashed;
+  color: var(--muted);
+}
+
 .coach-card::after {
   content: "";
   position: absolute;
@@ -648,7 +683,8 @@ button[kind="secondaryFormSubmit"]:hover {
   }
 
   .feature-grid,
-  .active-grid {
+  .active-grid,
+  .tutorial-columns {
     grid-template-columns: 1fr;
   }
 }
