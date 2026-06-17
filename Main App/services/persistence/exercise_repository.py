@@ -1,6 +1,9 @@
 import sqlite3
 import streamlit as st
 from pathlib import Path
+import hashlib
+import hmac
+import os
 
 _DB_PATH = str(Path(__file__).parent.parent.parent / "data.db")
 
@@ -38,6 +41,11 @@ def init_db() -> None:
             )
             """
         )
+        user_columns = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+
+        if "password_hash" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+
         columns = [row["name"] for row in conn.execute("PRAGMA table_info(exercises)").fetchall()]
 
         if "form_score" not in columns:
@@ -64,6 +72,72 @@ def create_user(username: str) -> sqlite3.Row:
         )
 
     return get_user(username) 
+
+
+def _hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120000)
+    return f"{salt.hex()}:{digest.hex()}"
+
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        salt_hex, digest_hex = stored_hash.split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+        expected = bytes.fromhex(digest_hex)
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120000)
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
+
+def set_user_password(user_id: int, password: str) -> None:
+    conn = _get_connection()
+
+    with conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (_hash_password(password), user_id),
+        )
+
+
+def register_user(username: str, password: str) -> sqlite3.Row | None:
+    existing_user = get_user(username)
+
+    if existing_user is not None:
+        if existing_user["password_hash"]:
+            return None
+
+        set_user_password(existing_user["id"], password)
+        return get_user(username)
+
+    conn = _get_connection()
+
+    with conn:
+        conn.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            (username, _hash_password(password)),
+        )
+
+    return get_user(username)
+
+
+def authenticate_user(username: str, password: str) -> sqlite3.Row | None:
+    user = get_user(username)
+
+    if user is None:
+        return None
+
+    stored_hash = user["password_hash"]
+
+    if not stored_hash:
+        set_user_password(user["id"], password)
+        return get_user(username)
+
+    if _verify_password(password, stored_hash):
+        return user
+
+    return None
 
 
 def get_or_create_user(username: str) -> sqlite3.Row:
