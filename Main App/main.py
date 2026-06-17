@@ -50,7 +50,7 @@ def render_section_header(title, subtitle=""):
     st.markdown(
         f"""
         <div class="section-shell">
-            <div class="section-kicker">AI Gym Coach</div>
+            <div class="section-kicker">Performance Dashboard</div>
             <h2 class="section-title">{safe_text(title)}</h2>
             {subtitle_html}
         </div>
@@ -63,37 +63,35 @@ def render_start_screen():
     st.markdown(
         """
         <section class="hero">
-            <div class="section-kicker">Real-time fitness intelligence</div>
-            <h1>Train Smarter with AI</h1>
+            <div class="hero-badge">AI FITNESS COACH</div>
+            <h1>Train Smarter.<br>Move Better.<br>Track Everything.</h1>
             <p>
-                Get live pose detection, rep counting, form scoring, and AI voice coaching
-                while you move. Pick your workout in the sidebar and let the camera guide
-                your session.
+                Real-time AI powered workout analysis with voice coaching.
             </p>
             <div class="callout">
-                Select your exercise, sets, and reps from the sidebar, then start your workout.
+                Build your workout plan in the sidebar, start the camera, and let AI coach every rep.
             </div>
         </section>
         <div class="feature-grid">
             <div class="glass-card feature-card">
-                <div class="feature-icon">01</div>
-                <h3>Real-time Rep Counting</h3>
-                <p>Track reps and sets automatically with MediaPipe pose detection.</p>
+                <div class="feature-icon">AI</div>
+                <h3>AI Voice Coach</h3>
+                <p>Short, focused coaching cues while you train.</p>
             </div>
             <div class="glass-card feature-card">
-                <div class="feature-icon">02</div>
-                <h3>AI Voice Feedback</h3>
-                <p>Hear short coaching cues when form needs attention.</p>
-            </div>
-            <div class="glass-card feature-card">
-                <div class="feature-icon">03</div>
+                <div class="feature-icon">100</div>
                 <h3>Form Score</h3>
-                <p>See a live score out of 100 based on exercise-specific metrics.</p>
+                <p>Live movement quality scoring for every session.</p>
             </div>
             <div class="glass-card feature-card">
-                <div class="feature-icon">04</div>
+                <div class="feature-icon">UP</div>
                 <h3>Progress Tracking</h3>
-                <p>Review reps, sets, workout time, charts, and history after sessions.</p>
+                <p>See your reps, sets, time, and weekly trends.</p>
+            </div>
+            <div class="glass-card feature-card">
+                <div class="feature-icon">REP</div>
+                <h3>Real-time Rep Counter</h3>
+                <p>Automatic counting through live pose detection.</p>
             </div>
         </div>
         """,
@@ -113,7 +111,7 @@ def render_workout_header():
         <div class="workout-card">
             <div class="workout-card__row">
                 <div>
-                    <div class="section-kicker">Workout in progress</div>
+                    <div class="section-kicker">Workout Active</div>
                     <h2>{safe_text(exercise)}</h2>
                     <p>{sets_completed} / {target_sets} sets completed | {reps} total reps</p>
                 </div>
@@ -125,11 +123,43 @@ def render_workout_header():
     )
 
 
+def render_active_workout_grid():
+    exercise = st.session_state.get("exercise_type", "Workout")
+    total_reps = st.session_state.get("reps", 0)
+    sets_completed = st.session_state.get("sets_completed", 0)
+    target_sets = st.session_state.get("target_sets", 0)
+    form_score = st.session_state.get("form_score", 0)
+
+    st.markdown(
+        f"""
+        <div class="active-grid">
+            <div class="active-card">
+                <span>Exercise</span>
+                <strong>{safe_text(exercise)}</strong>
+            </div>
+            <div class="active-card accent-purple">
+                <span>Form Score</span>
+                <strong>{form_score}/100</strong>
+            </div>
+            <div class="active-card">
+                <span>Reps</span>
+                <strong>{total_reps}</strong>
+            </div>
+            <div class="active-card">
+                <span>Sets</span>
+                <strong>{sets_completed}/{target_sets}</strong>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_coach_card(message):
     st.markdown(
         f"""
         <div class="coach-card">
-            <div class="section-kicker">AI Coach</div>
+            <div class="coach-label">AI Coach</div>
             <h3>Live Feedback</h3>
             <p>{safe_text(message)}</p>
         </div>
@@ -142,7 +172,7 @@ def render_session_summary(summary):
     st.markdown(
         f"""
         <div class="coach-card">
-            <div class="section-kicker">Session Summary</div>
+            <div class="coach-label">Session Summary</div>
             <h3>Workout Recap</h3>
             <p>{safe_text(summary).replace(chr(10), "<br>")}</p>
         </div>
@@ -303,11 +333,18 @@ def main():
     
     with st.sidebar:
         st.markdown(
-            """
+            f"""
             <div class="sidebar-brand">
-                <div class="sidebar-brand__kicker">Fitness AI</div>
-                <div class="sidebar-brand__title">Apna AI Coach</div>
-                <div class="sidebar-brand__caption">Plan, train, track, improve.</div>
+                <div class="sidebar-brand__kicker">Premium Training</div>
+                <div class="sidebar-brand__title">AI Gym Coach</div>
+                <div class="sidebar-brand__caption">Form intelligence for every rep.</div>
+            </div>
+            <div class="sidebar-card profile-card">
+                <div class="profile-avatar">R</div>
+                <div>
+                    <div class="sidebar-card__label">Athlete</div>
+                    <div class="sidebar-card__value">{safe_text(st.session_state.get("username", "Guest"))}</div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -319,7 +356,15 @@ def main():
 
         st.divider()
 
-        st.subheader("Workout Plan")
+        st.markdown(
+            """
+            <div class="sidebar-card sidebar-card--section">
+                <div class="sidebar-card__label">Workout Plan</div>
+                <div class="sidebar-card__value">Choose your training target</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         if not workout_started:
             plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
@@ -380,7 +425,15 @@ def main():
             sets_completed = st.session_state.get("sets_completed")
             target_sets = st.session_state.get("target_sets")
 
-            st.subheader("Progress")
+            st.markdown(
+                """
+                <div class="sidebar-card sidebar-card--section">
+                    <div class="sidebar-card__label">Progress</div>
+                    <div class="sidebar-card__value">Live session stats</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
             st.metric("Total Reps", f"{total_reps}")
             st.metric("Current Set Reps", f"{current_set_reps} / {reps_per_set}")
@@ -424,6 +477,7 @@ def main():
 
     if workout_started:
         render_workout_header()
+        render_active_workout_grid()
 
     if st.session_state.get("coach_feedback"):
         render_coach_card(st.session_state.coach_feedback)
