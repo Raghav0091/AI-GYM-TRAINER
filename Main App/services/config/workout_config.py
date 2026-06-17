@@ -7,6 +7,9 @@ EXERCISE_OPTIONS=[
     "Jumping Jacks",
     "High Knees",
     "Crunches",
+    "Sit-ups",
+    "Plank",
+    "Mountain Climbers",
 ]
 
 
@@ -57,6 +60,21 @@ METRICS_FIELDS = {
         "torso_angle": 0,
         "range_status": "N/A",
         "neck_status": "N/A",
+    },
+    "Sit-ups": {
+        "torso_angle": 0,
+        "range_status": "N/A",
+        "control_status": "N/A",
+    },
+    "Plank": {
+        "hold_seconds": 0,
+        "body_alignment": "N/A",
+        "hip_status": "N/A",
+    },
+    "Mountain Climbers": {
+        "knee_drive": "N/A",
+        "hip_status": "N/A",
+        "active_knee": "N/A",
     },
 }
 
@@ -157,6 +175,42 @@ EXERCISE_TUTORIALS = {
         ],
         "mistakes": ["Pulling on the neck", "Using momentum", "Very short range"],
         "video_url": "https://www.youtube.com/embed/Xyd_fa5zoEU",
+    },
+    "Sit-ups": {
+        "description": "A larger-range core movement that brings your torso up toward your thighs.",
+        "muscles": "Abs, hip flexors, obliques",
+        "steps": [
+            "Lie on your back with knees bent and feet planted.",
+            "Brace your core and curl your torso upward.",
+            "Sit up toward your thighs without yanking your neck.",
+            "Lower back down slowly before the next rep.",
+        ],
+        "mistakes": ["Pulling the neck", "Using too much momentum", "Feet lifting off the floor"],
+        "video_url": "https://www.youtube.com/embed/jDwoBqPH0jk",
+    },
+    "Plank": {
+        "description": "A core stability hold that trains full-body tension and posture.",
+        "muscles": "Core, shoulders, glutes",
+        "steps": [
+            "Set elbows or hands under your shoulders.",
+            "Step feet back into a straight line.",
+            "Brace your core and squeeze your glutes.",
+            "Hold without letting hips sag or pike up.",
+        ],
+        "mistakes": ["Sagging hips", "Hips too high", "Holding breath"],
+        "video_url": "https://www.youtube.com/embed/pSHjTRCQxIw",
+    },
+    "Mountain Climbers": {
+        "description": "A fast plank-based cardio drill using alternating knee drives.",
+        "muscles": "Core, shoulders, hip flexors, quads",
+        "steps": [
+            "Start in a strong high plank.",
+            "Drive one knee toward your chest.",
+            "Switch legs quickly while keeping shoulders stacked.",
+            "Keep hips level and move with control.",
+        ],
+        "mistakes": ["Hips bouncing high", "Short knee drive", "Shoulders drifting behind hands"],
+        "video_url": "https://www.youtube.com/embed/nmwgirgXLYM",
     },
 }
 

@@ -65,6 +65,22 @@ def calculate_form_score(exercise, metrics):
             _status_score(metrics.get("neck_status"), {"NEUTRAL NECK": 100, "CHECK POSITION": 65, "N/A": 70}),
             _angle_score(metrics.get("torso_angle"), ideal=115, tolerance=55),
         ]
+    elif exercise == "Sit-ups":
+        scores = [
+            _status_score(metrics.get("range_status"), {"FULL SIT-UP": 100, "LOW RANGE": 55, "N/A": 70}),
+            _status_score(metrics.get("control_status"), {"CONTROLLED": 100, "CHECK POSITION": 65, "N/A": 70}),
+            _angle_score(metrics.get("torso_angle"), ideal=95, tolerance=60),
+        ]
+    elif exercise == "Plank":
+        scores = [
+            _status_score(metrics.get("body_alignment"), {"STRAIGHT": 100, "SLIGHT BEND": 78, "POOR FORM": 45, "N/A": 70}),
+            _status_score(metrics.get("hip_status"), {"LEVEL": 100, "SAGGING": 55, "PIKED UP": 60, "N/A": 70}),
+        ]
+    elif exercise == "Mountain Climbers":
+        scores = [
+            _status_score(metrics.get("knee_drive"), {"GOOD DRIVE": 100, "LOW DRIVE": 55, "N/A": 70}),
+            _status_score(metrics.get("hip_status"), {"LEVEL": 100, "HIPS HIGH": 60, "N/A": 70}),
+        ]
     else:
         scores = [70]
 

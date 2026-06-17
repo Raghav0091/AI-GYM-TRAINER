@@ -16,6 +16,9 @@ from detectors.lunges import LungesDetector
 from detectors.jumping_jacks import JumpingJacksDetector
 from detectors.high_knees import HighKneesDetector
 from detectors.crunches import CrunchesDetector
+from detectors.situps import SitUpsDetector
+from detectors.plank import PlankDetector
+from detectors.mountain_climbers import MountainClimbersDetector
 from services.config.workout_config import POSE_CONNECTIONS
 
 
@@ -49,6 +52,9 @@ class VideoProcessorClass(VideoProcessorBase):
             "Jumping Jacks": JumpingJacksDetector(),
             "High Knees": HighKneesDetector(),
             "Crunches": CrunchesDetector(),
+            "Sit-ups": SitUpsDetector(),
+            "Plank": PlankDetector(),
+            "Mountain Climbers": MountainClimbersDetector(),
         }
 
         self._frame_timestamps_ms = 0
@@ -135,6 +141,12 @@ class VideoProcessorClass(VideoProcessorBase):
             self._draw_high_knee_overlays(img, metrics)
         elif ex_type == "Crunches":
             self._draw_crunch_overlays(img, metrics)
+        elif ex_type == "Sit-ups":
+            self._draw_situp_overlays(img, metrics)
+        elif ex_type == "Plank":
+            self._draw_plank_overlays(img, metrics)
+        elif ex_type == "Mountain Climbers":
+            self._draw_mountain_climber_overlays(img, metrics)
 
 
     def _draw_squats_overlays(self, img, metrics):
@@ -241,6 +253,45 @@ class VideoProcessorClass(VideoProcessorBase):
             2,
         )
 
+    def _draw_situp_overlays(self, img, metrics):
+        h, _ = img.shape[:2]
+
+        cv2.putText(
+            img,
+            f"RANGE: {metrics['range_status']} | CONTROL: {metrics['control_status']}",
+            (20, h - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
+
+    def _draw_plank_overlays(self, img, metrics):
+        h, _ = img.shape[:2]
+
+        cv2.putText(
+            img,
+            f"HOLD: {metrics['hold_seconds']}s | HIP: {metrics['hip_status']}",
+            (20, h - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
+
+    def _draw_mountain_climber_overlays(self, img, metrics):
+        h, _ = img.shape[:2]
+
+        cv2.putText(
+            img,
+            f"KNEE: {metrics['knee_drive']} | HIP: {metrics['hip_status']}",
+            (20, h - 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
+
     def recv(self, frame):
         image = np.asarray(
             cv2.flip(frame.to_ndarray(format="bgr24"), 1),
@@ -282,4 +333,3 @@ class VideoProcessorClass(VideoProcessorBase):
                     self._latest_metrics = {"pose_detected": False}
 
         return av.VideoFrame.from_ndarray(image, format="bgr24")
-

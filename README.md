@@ -26,6 +26,9 @@ Current supported exercises:
 - Jumping Jacks
 - High Knees
 - Crunches
+- Sit-ups
+- Plank
+- Mountain Climbers
 
 Each exercise has detector metrics, sidebar feedback, form scoring, and tutorial content. Demo videos use safe YouTube embed links when available; missing links fall back to a clean “Demo video coming soon” card.
 
@@ -123,6 +126,15 @@ Ignored files include:
 - `data.db`
 - `*.db`
 - `.streamlit/secrets.toml`
+
+## ML Roadmap
+
+- Stage 1: Rule-based MediaPipe detectors
+- Stage 2: Better thresholds and smoothing
+- Stage 3: Collect exercise data
+- Stage 4: Train exercise classifier
+- Stage 5: Train form-quality classifier
+- Stage 6: Personalized calibration
 
 ## Screenshots
 

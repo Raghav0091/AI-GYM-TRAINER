@@ -86,6 +86,35 @@ class VoicePipeline:
 
             if neck == "CHECK POSITION":
                 return "Your neck position is hard to read. Keep your chin slightly tucked and lift from your ribs, not your head."
+
+        elif exercise == "Sit-ups":
+            situp_range = metrics.get("range_status", "")
+
+            if situp_range == "LOW RANGE":
+                return "Your sit-up range is short. Curl higher toward your thighs with control so your core works through a fuller range."
+
+        elif exercise == "Plank":
+            alignment = metrics.get("body_alignment", "")
+            hip_status = metrics.get("hip_status", "")
+
+            if alignment == "POOR FORM":
+                return "Your plank line is breaking. Brace your core, squeeze your glutes, and make a straight line from shoulders to ankles."
+
+            if hip_status == "SAGGING":
+                return "Your hips are sagging in the plank. Lift them slightly to protect your lower back and keep your core active."
+
+            if hip_status == "PIKED UP":
+                return "Your hips are too high in the plank. Lower them until your body forms one strong straight line."
+
+        elif exercise == "Mountain Climbers":
+            knee_drive = metrics.get("knee_drive", "")
+            hip_status = metrics.get("hip_status", "")
+
+            if knee_drive == "LOW DRIVE":
+                return "Your knee drive is short. Pull each knee closer toward your chest while keeping your shoulders stacked over your hands."
+
+            if hip_status == "HIPS HIGH":
+                return "Your hips are rising during mountain climbers. Keep your plank lower and stable so the core does more work."
         return None
 
     def process_event(self, event, exercise, metrics):

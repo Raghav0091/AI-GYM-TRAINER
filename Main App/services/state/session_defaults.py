@@ -55,6 +55,9 @@ def initial_session_defaults():
         "active_knee": "N/A",
         "range_status": "N/A",
         "neck_status": "N/A",
+        "control_status": "N/A",
+        "hold_seconds": 0,
+        "knee_drive": "N/A",
     }
 
     for key, value in defaults.items():

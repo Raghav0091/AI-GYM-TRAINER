@@ -28,6 +28,15 @@ class BaseExercise(ABC):
 
         return (p.x, p.y)
 
+    def landmarks_visible(self, landmarks, indices, min_visibility=0.65):
+        return all(landmarks[idx].visibility >= min_visibility for idx in indices)
+
+    def midpoint(self, landmarks, first_idx, second_idx):
+        first = landmarks[first_idx]
+        second = landmarks[second_idx]
+
+        return ((first.x + second.x) / 2, (first.y + second.y) / 2)
+
     @abstractmethod
     def process(self, landmarks):
         pass

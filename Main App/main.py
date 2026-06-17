@@ -544,9 +544,27 @@ def main():
 
             elif exercise == "Crunches":
                 st.subheader("Crunch Metrics")
-                st.metric("Torso Angle", f"{st.session_state.torso_angle}Â°")
+                st.metric("Torso Angle", f"{st.session_state.torso_angle}°")
                 st.metric("Range", st.session_state.range_status)
                 st.metric("Neck", st.session_state.neck_status)
+
+            elif exercise == "Sit-ups":
+                st.subheader("Sit-up Metrics")
+                st.metric("Torso Angle", f"{st.session_state.torso_angle}°")
+                st.metric("Range", st.session_state.range_status)
+                st.metric("Control", st.session_state.control_status)
+
+            elif exercise == "Plank":
+                st.subheader("Plank Metrics")
+                st.metric("Hold Time", f"{st.session_state.hold_seconds}s")
+                st.metric("Body Alignment", st.session_state.body_alignment)
+                st.metric("Hip Position", st.session_state.hip_status)
+
+            elif exercise == "Mountain Climbers":
+                st.subheader("Mountain Climber Metrics")
+                st.metric("Knee Drive", st.session_state.knee_drive)
+                st.metric("Hip Position", st.session_state.hip_status)
+                st.metric("Active Knee", st.session_state.active_knee)
 
     if st.session_state.get("audio_to_play") and not st.session_state.get("audio_played", False):
         autoplay_audio(st.session_state.audio_to_play)
