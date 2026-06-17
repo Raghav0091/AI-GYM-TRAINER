@@ -44,7 +44,7 @@ def render_login_wall():
         with st.form("login_form", clear_on_submit=False):
             username = st.text_input("Username", placeholder="Enter your username", key="login_username")
             password = st.text_input("Password", placeholder="Enter your password", type="password", key="login_password")
-            submit_button = st.form_submit_button("Login", width="stretch")
+            submit_button = st.form_submit_button("Login", width="stretch", type="primary")
 
         if submit_button:
             if not username.strip() or not password:
@@ -67,7 +67,7 @@ def render_login_wall():
                 type="password",
                 key="register_confirm_password",
             )
-            submit_button = st.form_submit_button("Register", width="stretch")
+            submit_button = st.form_submit_button("Register", width="stretch", type="secondary")
 
         if submit_button:
             clean_username = username.strip()

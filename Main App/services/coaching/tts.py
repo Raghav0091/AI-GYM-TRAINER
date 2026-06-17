@@ -1,4 +1,5 @@
 from io import BytesIO
+import streamlit as st
 from gtts import gTTS
 
 
@@ -23,4 +24,5 @@ class TextToSpeech:
             return buffer.read()
         except Exception as exc:
             self.last_error = str(exc)
+            st.error(f"gTTS failed: {self.last_error}")
             return None

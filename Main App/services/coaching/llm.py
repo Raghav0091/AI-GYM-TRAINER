@@ -23,6 +23,7 @@ class LLMCoach:
             model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.4,
+            max_tokens=100,
         )
 
         text = response.choices[0].message.content.strip()
@@ -48,6 +49,7 @@ class LLMCoach:
                 {"role": "user", "content": prompt},
             ],
             temperature=0.4,
+            max_tokens=100,
         )
 
         return response.choices[0].message.content.strip()

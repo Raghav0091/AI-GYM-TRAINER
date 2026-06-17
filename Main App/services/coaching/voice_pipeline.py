@@ -80,23 +80,38 @@ class VoicePipeline:
         try:
             text = self.llm.give_feedback(event, issue)
         except Exception as exc:
-            st.warning(f"Groq voice coach failed: {exc}")
+            st.error(f"Groq voice coach failed: {exc}")
             return None
 
         voice = self.tts.speak(text)
 
         if voice is None and getattr(self.tts, "last_error", None):
-            st.warning(f"gTTS voice playback failed: {self.tts.last_error}")
+            st.error(f"gTTS voice playback failed: {self.tts.last_error}")
 
         self.last_spoken_at = now
 
         return voice, text
+
+
+def queue_voice_feedback(result):
+    if not result:
+        return
+
+    audio_bytes, feedback_text = result
+    st.session_state.coach_feedback = feedback_text
+
+    if audio_bytes:
+        st.session_state.audio_to_play = audio_bytes
+        st.session_state.audio_played = False
+    else:
+        st.session_state.audio_to_play = None
+        st.session_state.audio_played = True
     
 
 def autoplay_audio(audio_bytes):
     if not audio_bytes:
         return
     
-    st.markdown("<style>[data-testid='stAudio'] {display: none;}</style>", unsafe_allow_html=True)
-    
     st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+    st.session_state.audio_played = True
+    st.session_state.audio_pause_until = time.time() + 6

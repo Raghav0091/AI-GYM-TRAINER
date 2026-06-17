@@ -17,7 +17,7 @@ from dotenv import find_dotenv, load_dotenv
 from services.coaching.llm import LLMCoach
 from services.coaching.tts import TextToSpeech
 
-from services.coaching.voice_pipeline import VoicePipeline, autoplay_audio
+from services.coaching.voice_pipeline import VoicePipeline, autoplay_audio, queue_voice_feedback
 
 
 def safe_text(value):
@@ -25,12 +25,11 @@ def safe_text(value):
 
 
 def load_environment():
+    load_dotenv()
     env_path = find_dotenv(usecwd=True)
 
     if env_path:
         load_dotenv(env_path)
-    else:
-        load_dotenv()
 
 
 def get_groq_api_key():
@@ -200,7 +199,7 @@ def setup_voice_pipeline():
         st.session_state.voice_pipeline = VoicePipeline(llm_coach, tts)
     except Exception as e:
         st.session_state.voice_pipeline = None
-        st.warning(f"Voice coach failed to load: {e}")
+        st.error(f"Voice coach failed to load: {e}")
 
 
 def reset_workout_state(plan_exercise, plan_sets, plan_reps):
@@ -216,6 +215,10 @@ def reset_workout_state(plan_exercise, plan_sets, plan_reps):
     st.session_state.average_form_score = 0
     st.session_state.session_summary = ""
     st.session_state.summary_generated = False
+    st.session_state.audio_to_play = None
+    st.session_state.coach_feedback = ""
+    st.session_state.audio_played = True
+    st.session_state.audio_pause_until = 0.0
     st.session_state.workout_started = True
     st.session_state.set_cycle_started_at = time.time()
     st.session_state.last_saved_sets_completed = 0
@@ -387,8 +390,7 @@ def main():
                         metrics={}
                     )
                     
-                    if result:
-                        st.session_state.audio_to_play, st.session_state.coach_feedback = result
+                    queue_voice_feedback(result)
 
                 st.rerun()
         else:
@@ -410,8 +412,7 @@ def main():
                         exercise=exercise,
                         metrics={}
                     )
-                    if result:
-                        st.session_state.audio_to_play, st.session_state.coach_feedback = result
+                    queue_voice_feedback(result)
 
                 st.rerun()
 
@@ -472,7 +473,7 @@ def main():
                 st.metric("Torso Angle", f"{st.session_state.torso_angle}°")
                 st.metric("Balance Status", st.session_state.balance_status)
 
-    if st.session_state.get("audio_to_play"):
+    if st.session_state.get("audio_to_play") and not st.session_state.get("audio_played", False):
         autoplay_audio(st.session_state.audio_to_play)
 
     if workout_started:
@@ -502,8 +503,8 @@ def main():
 
         sync_metrics_update(context)
 
-        if context.state.playing:
-            time.sleep(0.25)
+        if context.state.playing and time.time() >= st.session_state.get("audio_pause_until", 0.0):
+            time.sleep(1.0)
             st.rerun()
 
         inject_webrtc_styles()

@@ -20,6 +20,10 @@ def initial_session_defaults():
         "average_form_score": 0,
         "session_summary": "",
         "summary_generated": False,
+        "audio_to_play": None,
+        "coach_feedback": "",
+        "audio_played": True,
+        "audio_pause_until": 0.0,
 
         # Workout plan (set before starting)
         "workout_started": False,

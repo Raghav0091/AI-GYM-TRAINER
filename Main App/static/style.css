@@ -229,6 +229,43 @@ footer {
   box-shadow: 0 0 34px rgba(139, 92, 246, 0.28) !important;
 }
 
+[data-testid="stFormSubmitButton"] button,
+[data-testid="stBaseButton-primaryFormSubmit"],
+button[kind="primaryFormSubmit"] {
+  min-height: 54px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, var(--orange), var(--red)) !important;
+  color: #111111 !important;
+  font-weight: 950 !important;
+  padding: 0.85rem 1.3rem !important;
+  box-shadow: var(--glow) !important;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease !important;
+}
+
+[data-testid="stBaseButton-secondaryFormSubmit"],
+button[kind="secondaryFormSubmit"] {
+  min-height: 54px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, var(--purple), var(--red), var(--orange)) !important;
+  color: #FFFFFF !important;
+  font-weight: 950 !important;
+  padding: 0.85rem 1.3rem !important;
+  box-shadow: 0 0 34px rgba(139, 92, 246, 0.28) !important;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease !important;
+}
+
+[data-testid="stFormSubmitButton"] button:hover,
+[data-testid="stBaseButton-primaryFormSubmit"]:hover,
+[data-testid="stBaseButton-secondaryFormSubmit"]:hover,
+button[kind="primaryFormSubmit"]:hover,
+button[kind="secondaryFormSubmit"]:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 0 42px rgba(255, 77, 77, 0.34), 0 18px 48px rgba(0, 0, 0, 0.4) !important;
+}
+
 @media (max-width: 560px) {
   .auth-page {
     min-height: calc(100vh - 2rem);
@@ -737,8 +774,4 @@ video {
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
   overflow: hidden;
-}
-
-.stAudio {
-  display: none;
 }
