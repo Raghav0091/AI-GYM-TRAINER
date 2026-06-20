@@ -28,6 +28,21 @@ def sync_metrics_update(context):
     if not latest_metrics:
         return
 
+    frame_timestamp = latest_metrics.get("frame_timestamp_ms")
+    if frame_timestamp is not None and frame_timestamp == st.session_state.get("last_processed_frame_timestamp"):
+        return
+
+    st.session_state.last_processed_frame_timestamp = frame_timestamp
+    st.session_state.last_ui_metrics_update = time.time()
+    st.session_state.last_frame_timestamp = latest_metrics.get(
+        "last_frame_at",
+        st.session_state.get("last_frame_timestamp", 0.0),
+    )
+    st.session_state.camera_fps_estimate = latest_metrics.get(
+        "fps",
+        st.session_state.get("camera_fps_estimate", 0.0),
+    )
+
     st.session_state.camera_status = latest_metrics.get("camera_status", "Camera active")
     st.session_state.detector_stage = latest_metrics.get("stage", st.session_state.get("detector_stage", "setup"))
     st.session_state.landmark_confidence = latest_metrics.get("landmark_confidence", st.session_state.get("landmark_confidence", 0.0))
@@ -55,7 +70,19 @@ def sync_metrics_update(context):
     for key, default in fields.items():
         st.session_state[key] = latest_metrics.get(key, default)
 
-    live_form_score = update_form_score_state(exercise, latest_metrics)
+    live_form_score = st.session_state.get("form_score", 0)
+    detector_form_score = int(latest_metrics.get("form_score", live_form_score) or 0)
+    last_form_update = st.session_state.get("last_form_score_update", 0.0)
+    should_update_form_score = (
+        time.time() - last_form_update >= 1.0
+        or abs(detector_form_score - int(st.session_state.get("form_score", 0) or 0)) >= 5
+        or latest_metrics.get("is_valid_rep", False)
+    )
+
+    if should_update_form_score:
+        live_form_score = update_form_score_state(exercise, latest_metrics)
+        st.session_state.last_form_score_update = time.time()
+
     st.session_state.detector_debug = {
         **st.session_state.get("detector_debug", {}),
         "form_score": live_form_score,
@@ -103,6 +130,7 @@ def sync_metrics_update(context):
             time_taken,
             st.session_state.get("average_form_score", 0),
         )
+        st.session_state.last_db_write = now_ts
 
         if st.session_state.get("voice_pipeline"):
             result = st.session_state.voice_pipeline.process_event(
@@ -112,6 +140,8 @@ def sync_metrics_update(context):
             )
 
             queue_voice_feedback(result)
+            if result:
+                st.session_state.last_voice_feedback = now_ts
 
         st.session_state.set_cycle_started_at = now_ts
         st.session_state.last_saved_sets_completed = sets_completed
@@ -135,6 +165,8 @@ def sync_metrics_update(context):
             )
 
             queue_voice_feedback(result)
+            if result:
+                st.session_state.last_voice_feedback = time.time()
                 
     pose_detected = latest_metrics.get("pose_detected", True)
     
@@ -150,6 +182,8 @@ def sync_metrics_update(context):
         )
     
         queue_voice_feedback(result)
+        if result:
+            st.session_state.last_voice_feedback = time.time()
 
     if st.session_state.get("voice_pipeline"):
         result = st.session_state.voice_pipeline.process_event(
@@ -159,6 +193,8 @@ def sync_metrics_update(context):
         )
         
         queue_voice_feedback(result)
+        if result:
+            st.session_state.last_voice_feedback = time.time()
 
 
 def _is_current_workout_valid(exercise):
@@ -203,6 +239,7 @@ def _sync_room_score_if_needed(exercise, latest_metrics):
         metrics,
         status="active",
     )
+    st.session_state.last_room_score_update = now_ts
     maybe_mark_race_winner(
         room,
         st.session_state.get("user_id"),

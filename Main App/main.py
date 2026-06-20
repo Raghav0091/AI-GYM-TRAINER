@@ -9,9 +9,12 @@ from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS, EXERCISE_TUTORIALS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
 from services.persistence.exercise_repository import init_db
-from streamlit_webrtc import webrtc_streamer, WebRtcMode
-from services.vision.exercise_video_processor import VideoProcessorClass
 from services.tracking.metrics import sync_metrics_update
+from services.ui.camera_panel import (
+    render_camera_debug_panel,
+    render_camera_troubleshooting,
+    render_workout_camera,
+)
 from services.persistence.exercise_repository import get_users_exercises
 from services.gamification.achievement_service import get_achievements_for_user
 from services.gamification.challenge_service import get_user_daily_challenge
@@ -823,6 +826,16 @@ def reset_workout_state(plan_exercise, plan_sets, plan_reps):
     st.session_state.audio_played = True
     st.session_state.audio_pause_until = 0.0
     st.session_state.workout_started = True
+    st.session_state.workout_state = "starting_camera"
+    st.session_state.camera_state = "waiting"
+    st.session_state.camera_status = "Waiting for camera permission"
+    st.session_state.camera_last_error = ""
+    st.session_state.last_processed_frame_timestamp = None
+    st.session_state.last_ui_metrics_update = 0.0
+    st.session_state.last_form_score_update = 0.0
+    st.session_state.last_room_score_update = 0.0
+    st.session_state.last_db_write = 0.0
+    st.session_state.last_voice_feedback = 0.0
     st.session_state.workout_started_at = time.time()
     st.session_state.set_cycle_started_at = time.time()
     st.session_state.last_saved_sets_completed = 0
@@ -1031,6 +1044,12 @@ def main():
             value=st.session_state.get("debug_mode", False),
             help="Shows camera and detector internals for tuning rep counting.",
         )
+        st.session_state.camera_quality = st.selectbox(
+            "Camera quality",
+            ["Low", "Standard", "High"],
+            index=["Low", "Standard", "High"].index(st.session_state.get("camera_quality", "Standard")),
+            help="Use Standard for best stability. Choose Low if the camera opens slowly.",
+        )
         app_mode = st.radio(
             "Mode",
             ["Solo Workout", "Fitness Arena", "Dashboard / History"],
@@ -1127,6 +1146,9 @@ def main():
                     st.session_state.room_mode_active = False
                 generate_session_summary(exercise)
                 st.session_state.workout_started = False
+                st.session_state.workout_state = "ended"
+                st.session_state.camera_state = "idle"
+                st.session_state.camera_status = "Workout ended"
                 
                 if workout_result and workout_result.get("cancelled"):
                     st.session_state.coach_feedback = "Workout cancelled. I did not detect enough movement to save this session."
@@ -1279,45 +1301,26 @@ def main():
         render_exercise_tutorial(st.session_state.get("plan_exercise", "Squats"))
 
     if workout_started:
-        exercise_key = st.session_state.get("exercise_type", "exercise").lower()
-        exercise_key = "".join(ch if ch.isalnum() else "-" for ch in exercise_key).strip("-")
-
-        try:
-            context = webrtc_streamer(
-                key=f"exercise-analysis-{exercise_key}",
-                mode=WebRtcMode.SENDRECV,
-                video_processor_factory=VideoProcessorClass,
-                rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-                media_stream_constraints={
-                    "video": {
-                        "width": {"ideal": 960},
-                        "height": {"ideal": 540},
-                        "frameRate": {"ideal": 30, "max": 60},
-                    },
-                    "audio": False
-                },
-                async_processing=True
-            )
-        except Exception as exc:
-            st.error(f"Camera/WebRTC failed to start: {exc}")
-            st.info("Check browser camera permission, close other apps using the webcam, then restart the workout.")
-            st.session_state.camera_status = "Camera permission blocked"
-            context = None
-
-        if context and getattr(context, "video_processor", None):
-            context.video_processor.set_draw_pose_overlay(st.session_state.get("show_pose_overlay", False))
+        room_id = st.session_state.get("arena_room_id") if st.session_state.get("room_mode_active") else None
+        camera_mode = "room" if room_id else "solo"
+        context = render_workout_camera(
+            st.session_state.get("exercise_type", "Squats"),
+            mode=camera_mode,
+            room_id=room_id,
+            quality=st.session_state.get("camera_quality", "Standard"),
+            draw_pose_overlay=st.session_state.get("show_pose_overlay", False),
+        )
 
         sync_metrics_update(context)
 
-        if context and not context.state.playing:
-            st.session_state.camera_status = "Camera stopped"
-            st.info("Camera is not streaming yet. Click Start in the camera panel and allow browser camera permission.")
-        elif context and context.state.playing:
-            st.session_state.camera_status = st.session_state.get("camera_status", "Camera active")
+        if st.button("Refresh live metrics", width="stretch"):
+            sync_metrics_update(context)
 
-        if context and context.state.playing and time.time() >= st.session_state.get("audio_pause_until", 0.0):
-            time.sleep(1.0)
-            st.rerun()
+        if st.session_state.get("frame_error") or st.session_state.get("camera_last_error"):
+            render_camera_troubleshooting()
+
+        if st.session_state.get("debug_mode", False):
+            render_camera_debug_panel(context)
 
         inject_webrtc_styles()
 
