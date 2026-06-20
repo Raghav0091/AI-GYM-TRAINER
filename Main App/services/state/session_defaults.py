@@ -38,6 +38,11 @@ def initial_session_defaults():
         "detector_issue": None,
         "is_valid_rep": False,
         "detector_debug": {},
+        "app_mode": "Solo Workout",
+        "arena_room_id": None,
+        "arena_room_code": "",
+        "room_mode_active": False,
+        "last_room_score_snapshot": None,
 
         # Workout plan (set before starting)
         "workout_started": False,

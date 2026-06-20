@@ -11,6 +11,23 @@ STANDARD_METRICS = {
 }
 
 
+class DetectorMetricsAdapter:
+    """Small compatibility wrapper so every detector exposes the same shape."""
+
+    def __init__(self, exercise_name, detector):
+        self.exercise_name = exercise_name
+        self.detector = detector
+        self.metrics = standardize_detector_metrics(exercise_name, detector, {})
+
+    def process_landmarks(self, landmarks):
+        raw_metrics = self.detector.process(landmarks) if self.detector else {}
+        self.metrics = standardize_detector_metrics(self.exercise_name, self.detector, raw_metrics)
+        return self.metrics
+
+    def get_metrics(self):
+        return dict(self.metrics)
+
+
 def standardize_detector_metrics(exercise_name, detector, metrics):
     safe_metrics = dict(STANDARD_METRICS)
     safe_metrics.update(metrics or {})

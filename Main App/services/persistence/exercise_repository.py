@@ -163,6 +163,71 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_rooms (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_code           TEXT UNIQUE NOT NULL,
+                room_name           TEXT,
+                host_user_id        INTEGER,
+                exercise_name       TEXT NOT NULL,
+                target_reps         INTEGER DEFAULT 0,
+                target_sets         INTEGER DEFAULT 1,
+                target_hold_seconds INTEGER DEFAULT 0,
+                game_mode           TEXT DEFAULT 'Practice',
+                status              TEXT DEFAULT 'waiting',
+                winner_user_id      INTEGER,
+                created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
+                started_at          TEXT,
+                ended_at            TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS room_members (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id   INTEGER NOT NULL REFERENCES workout_rooms(id),
+                user_id   INTEGER NOT NULL REFERENCES users(id),
+                username  TEXT NOT NULL,
+                joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                is_host   INTEGER DEFAULT 0,
+                status    TEXT DEFAULT 'joined',
+                UNIQUE(room_id, user_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS room_scores (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id        INTEGER NOT NULL REFERENCES workout_rooms(id),
+                user_id        INTEGER NOT NULL REFERENCES users(id),
+                username       TEXT NOT NULL,
+                exercise_name  TEXT NOT NULL,
+                reps           INTEGER DEFAULT 0,
+                sets_completed INTEGER DEFAULT 0,
+                hold_seconds   REAL DEFAULT 0,
+                form_score     INTEGER DEFAULT 0,
+                workout_score  INTEGER DEFAULT 0,
+                status         TEXT DEFAULT 'active',
+                updated_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(room_id, user_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS room_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id    INTEGER NOT NULL REFERENCES workout_rooms(id),
+                user_id    INTEGER,
+                event_type TEXT,
+                message    TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
 
 
 def get_user(username: str) -> sqlite3.Row:

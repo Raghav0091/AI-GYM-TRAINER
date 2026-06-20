@@ -17,6 +17,7 @@ Version 3 adds a game-style progression system so workouts feel more rewarding: 
 - SQLite workout history and dashboard charts
 - XP, levels, streaks, achievements, personal records, and daily challenges
 - Local leaderboard foundation for future multiplayer scoring
+- AI Fitness Arena local multiplayer rooms with room codes and live leaderboard
 
 ## Exercises
 
@@ -119,6 +120,31 @@ Daily challenges are generated locally from templates, so Groq is not required f
 
 The local leaderboard ranks users on the same device by XP, reps, streaks, workouts, and best form score. The scoring service includes a future multiplayer hook for rooms, live scores, and team challenges later.
 
+## AI Fitness Arena
+
+AI Fitness Arena lets users create or join local workout rooms with a room code such as `GYM-742`.
+
+Current room features:
+
+- Create a room with name, exercise, targets, sets, and game mode.
+- Join a room using a room code.
+- Practice mode shows a live leaderboard without declaring a winner.
+- Race mode declares the first player to hit the target reps or plank hold time.
+- Team Challenge is a placeholder for a future update.
+- Each user's webcam stays local. The app only stores workout metrics such as reps, sets, hold seconds, form score, and score.
+- Room activity feed shows joins, starts, set completions, finishes, winners, and ended rooms.
+
+This is a local SQLite prototype. It works best for testing multiple browser sessions on the same computer or same local app/database. It is not a true internet multiplayer backend yet.
+
+Future real-time upgrade plan:
+
+- Move rooms to Supabase PostgreSQL.
+- Use Supabase Realtime presence to show online users.
+- Use Supabase broadcasts or Postgres changes for low-latency leaderboard updates.
+- Add a FastAPI WebSocket backend for scalable room channels.
+- Build a React frontend later for smoother multiplayer UX.
+- Add fitness games such as Squat Bird and Push-up Racer.
+
 ## Camera Troubleshooting
 
 - Run the app from `Main App`, not the repository root.
@@ -140,6 +166,9 @@ The local leaderboard ranks users on the same device by XP, reps, streaks, worko
 - Missing `GROQ_API_KEY`: add it to `.env`.
 - gTTS fails: check internet access. The app continues without voice.
 - Camera is blank: check browser permission and close other webcam apps.
+- Room code not found: make sure the host created the room on the same local database.
+- Leaderboard not updating: click Refresh Room, then make sure your camera workout is active and reps/hold time are changing.
+- SQLite multiplayer is local-only. For real remote users, move the room services to Supabase or WebSockets.
 
 ## Camera Positioning
 

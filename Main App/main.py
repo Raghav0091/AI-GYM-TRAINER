@@ -24,6 +24,19 @@ from services.gamification.progression_service import (
 )
 from services.gamification.scoring_service import level_progress
 from services.vision.detector_registry import DETECTOR_REGISTRY
+from services.multiplayer.leaderboard_service import get_room_leaderboard
+from services.multiplayer.room_service import (
+    add_room_event,
+    create_room,
+    end_room,
+    get_room,
+    get_room_by_code,
+    get_room_events,
+    get_room_members,
+    join_room,
+    start_room,
+)
+from services.multiplayer.score_service import upsert_room_score
 from groq import Groq
 from dotenv import find_dotenv, load_dotenv
 from services.coaching.llm import LLMCoach
@@ -512,6 +525,207 @@ def render_gamification_dashboard(user_id):
         st.info("Leaderboard unlocks after the first workout.")
 
 
+def render_room_leaderboard(room):
+    leaderboard = get_room_leaderboard(room["id"], room["exercise_name"])
+    st.markdown("##### Live Leaderboard")
+
+    if not leaderboard:
+        st.info("Scores appear when players start moving.")
+        return
+
+    cards = []
+    for index, row in enumerate(leaderboard, start=1):
+        primary = f"{int(row['hold_seconds'])}s" if room["exercise_name"] == "Plank" else int(row["reps"])
+        primary_label = "Hold" if room["exercise_name"] == "Plank" else "Reps"
+        cards.append(
+            f"<div class='leaderboard-card'>"
+            f"<div class='rank-pill'>#{index}</div>"
+            f"<h3>{safe_text(row['username'])}</h3>"
+            f"<div class='leaderboard-stats'>"
+            f"<span>{primary_label}<strong>{primary}</strong></span>"
+            f"<span>Sets<strong>{int(row['sets_completed'])}</strong></span>"
+            f"<span>Form<strong>{int(row['form_score'])}</strong></span>"
+            f"<span>Score<strong>{int(row['workout_score'])}</strong></span>"
+            f"</div>"
+            f"<p>{safe_text(row['status'])}</p>"
+            f"</div>"
+        )
+
+    st.markdown(f"<div class='leaderboard-grid'>{''.join(cards)}</div>", unsafe_allow_html=True)
+
+
+def render_room_events(room_id):
+    events = get_room_events(room_id)
+    st.markdown("##### Activity Feed")
+
+    if not events:
+        st.info("Room activity will appear here.")
+        return
+
+    event_html = "".join(
+        f"<li><span>{safe_text(event['event_type'])}</span>{safe_text(event['message'])}</li>"
+        for event in events
+    )
+    st.markdown(f"<ul class='activity-feed'>{event_html}</ul>", unsafe_allow_html=True)
+
+
+def render_fitness_arena():
+    render_section_header(
+        "AI Fitness Arena",
+        "Create a local workout room, invite players with a room code, and compete on a live leaderboard.",
+    )
+
+    room_id = st.session_state.get("arena_room_id")
+    room = get_room(room_id) if room_id else None
+
+    if room:
+        render_room_lobby(room)
+        return
+
+    create_tab, join_tab = st.tabs(["Create Room", "Join Room"])
+
+    with create_tab:
+        with st.form("create_arena_room", clear_on_submit=False):
+            room_name = st.text_input("Room name", value=f"{st.session_state.get('username', 'Athlete')}'s Arena")
+            exercise_name = st.selectbox("Exercise", EXERCISE_OPTIONS, key="arena_create_exercise")
+            game_mode = st.selectbox("Game mode", ["Practice", "Race", "Team Challenge"])
+            target_sets = st.number_input("Target sets", min_value=1, max_value=20, value=3, step=1)
+
+            if exercise_name == "Plank":
+                target_hold_seconds = st.number_input("Target hold seconds", min_value=10, max_value=300, value=30, step=5)
+                target_reps = 0
+            else:
+                target_reps = st.number_input("Target reps", min_value=5, max_value=500, value=30, step=5)
+                target_hold_seconds = 0
+
+            submitted = st.form_submit_button("Create Room", width="stretch")
+
+        if submitted:
+            if game_mode == "Team Challenge":
+                st.info("Team Challenge coming soon. Use Practice or Race for now.")
+            elif exercise_name not in DETECTOR_REGISTRY:
+                st.error("Detector not available for this exercise yet.")
+            else:
+                room = create_room(
+                    st.session_state.user_id,
+                    st.session_state.username,
+                    room_name,
+                    exercise_name,
+                    int(target_reps),
+                    int(target_sets),
+                    int(target_hold_seconds),
+                    game_mode,
+                )
+                st.session_state.arena_room_id = room["id"]
+                st.session_state.arena_room_code = room["room_code"]
+                st.rerun()
+
+    with join_tab:
+        with st.form("join_arena_room", clear_on_submit=False):
+            room_code = st.text_input("Room code", placeholder="GYM-742").upper()
+            submitted = st.form_submit_button("Join Room", width="stretch")
+
+        if submitted:
+            room, error = join_room(room_code, st.session_state.user_id, st.session_state.username)
+
+            if error:
+                st.error(error)
+            else:
+                st.session_state.arena_room_id = room["id"]
+                st.session_state.arena_room_code = room["room_code"]
+                st.rerun()
+
+
+def render_room_lobby(room):
+    members = get_room_members(room["id"])
+    is_host = room["host_user_id"] == st.session_state.get("user_id")
+    target_text = (
+        f"{room['target_hold_seconds']} sec x {room['target_sets']} sets"
+        if room["exercise_name"] == "Plank"
+        else f"{room['target_reps']} reps / {room['target_sets']} sets"
+    )
+
+    st.markdown(
+        f"""
+        <div class="arena-room-card">
+            <div>
+                <div class="section-kicker">Room Code</div>
+                <h1>{safe_text(room["room_code"])}</h1>
+                <p>{safe_text(room.get("room_name") or "Fitness Arena")} | {safe_text(room["status"].title())}</p>
+            </div>
+            <div class="arena-room-meta">
+                <span>Exercise<strong>{safe_text(room["exercise_name"])}</strong></span>
+                <span>Mode<strong>{safe_text(room["game_mode"])}</strong></span>
+                <span>Target<strong>{safe_text(target_text)}</strong></span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if room["game_mode"] == "Team Challenge":
+        st.info("Team Challenge coming soon.")
+
+    if room.get("winner_user_id"):
+        winner = next((member for member in members if member["user_id"] == room["winner_user_id"]), None)
+        winner_name = winner["username"] if winner else "Winner"
+        st.success(f"{winner_name} won the race!")
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.markdown("##### Joined Players")
+        member_html = "".join(
+            f"<div class='player-pill'>{safe_text(member['username'])}{' <span>Host</span>' if member['is_host'] else ''}</div>"
+            for member in members
+        )
+        st.markdown(f"<div class='player-list'>{member_html}</div>", unsafe_allow_html=True)
+
+    with col2:
+        if st.button("Refresh Room", width="stretch"):
+            st.rerun()
+
+        if is_host and room["status"] == "waiting":
+            if st.button("Start Room Workout", width="stretch"):
+                if start_room(room["id"], st.session_state.user_id):
+                    st.session_state.room_mode_active = True
+                    st.session_state.arena_room_id = room["id"]
+                    reset_workout_state(
+                        room["exercise_name"],
+                        room["target_sets"],
+                        room["target_hold_seconds"] if room["exercise_name"] == "Plank" else room["target_reps"],
+                    )
+                    st.rerun()
+
+        elif room["status"] == "waiting":
+            st.info("Waiting for host to start.")
+
+        if room["status"] == "active" and not st.session_state.get("workout_started"):
+            if st.button("Start My Camera Workout", width="stretch"):
+                st.session_state.room_mode_active = True
+                st.session_state.arena_room_id = room["id"]
+                reset_workout_state(
+                    room["exercise_name"],
+                    room["target_sets"],
+                    room["target_hold_seconds"] if room["exercise_name"] == "Plank" else room["target_reps"],
+                )
+                st.rerun()
+
+        if is_host and room["status"] != "completed":
+            if st.button("End Room", width="stretch"):
+                end_room(room["id"], st.session_state.user_id)
+                st.session_state.room_mode_active = False
+                st.rerun()
+
+        if st.button("Leave Room View", width="stretch"):
+            st.session_state.arena_room_id = None
+            st.session_state.arena_room_code = ""
+            st.session_state.room_mode_active = False
+            st.rerun()
+
+    render_room_leaderboard(room)
+    render_room_events(room["id"])
+
+
 def render_exercise_tutorial(exercise):
     tutorial = EXERCISE_TUTORIALS.get(exercise, {})
     steps = tutorial.get("steps", [])
@@ -817,18 +1031,24 @@ def main():
             value=st.session_state.get("debug_mode", False),
             help="Shows camera and detector internals for tuning rep counting.",
         )
-
-        st.markdown(
-            """
-            <div class="sidebar-card sidebar-card--section">
-                <div class="sidebar-card__label">Workout Plan</div>
-                <div class="sidebar-card__value">Choose your training target</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        app_mode = st.radio(
+            "Mode",
+            ["Solo Workout", "Fitness Arena", "Dashboard / History"],
+            key="app_mode",
         )
 
-        if not workout_started:
+        if app_mode == "Solo Workout":
+            st.markdown(
+                """
+                <div class="sidebar-card sidebar-card--section">
+                    <div class="sidebar-card__label">Workout Plan</div>
+                    <div class="sidebar-card__value">Choose your training target</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        if app_mode == "Solo Workout" and not workout_started:
             plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
 
             if plan_exercise == "Plank" and st.session_state.get("plan_reps", 10) < 30:
@@ -864,12 +1084,13 @@ def main():
                     queue_voice_feedback(result)
 
                 st.rerun()
-        else:
+        elif workout_started:
             exercise = st.session_state.get("exercise_type")
             sets = st.session_state.get("target_sets")
             reps = st.session_state.get("reps_per_set")
 
-            st.info(f"**{exercise}** -- {sets} Sets / {reps} Reps")
+            label = "Hold seconds" if exercise == "Plank" else "Reps"
+            st.info(f"**{exercise}** -- {sets} Sets / {reps} {label}")
             st.session_state.show_pose_overlay = st.toggle(
                 "Show pose guide lines",
                 value=st.session_state.get("show_pose_overlay", False),
@@ -880,6 +1101,30 @@ def main():
 
             if end_session_button:
                 workout_result = complete_workout_session(exercise)
+                if st.session_state.get("arena_room_id"):
+                    room = get_room(st.session_state.arena_room_id)
+                    if room:
+                        status = "cancelled" if workout_result and workout_result.get("cancelled") else "completed"
+                        metrics = {
+                            "reps": int(st.session_state.get("reps", 0) or 0),
+                            "sets_completed": int(st.session_state.get("sets_completed", 0) or 0),
+                            "hold_seconds": int(st.session_state.get("hold_seconds", 0) or 0),
+                            "form_score": int(st.session_state.get("average_form_score") or st.session_state.get("form_score", 0) or 0),
+                        }
+                        upsert_room_score(
+                            room,
+                            st.session_state.user_id,
+                            st.session_state.username,
+                            metrics,
+                            status=status,
+                        )
+                        add_room_event(
+                            room["id"],
+                            st.session_state.user_id,
+                            status,
+                            f"{st.session_state.username} {'cancelled' if status == 'cancelled' else 'finished'} their workout.",
+                        )
+                    st.session_state.room_mode_active = False
                 generate_session_summary(exercise)
                 st.session_state.workout_started = False
                 
@@ -1027,10 +1272,13 @@ def main():
     if st.session_state.get("gamification_result") and not workout_started:
         render_reward_screen(st.session_state.gamification_result)
 
-    if not workout_started:
+    if app_mode == "Fitness Arena":
+        render_fitness_arena()
+    elif not workout_started and app_mode == "Solo Workout":
         render_start_screen()
         render_exercise_tutorial(st.session_state.get("plan_exercise", "Squats"))
-    else:
+
+    if workout_started:
         exercise_key = st.session_state.get("exercise_type", "exercise").lower()
         exercise_key = "".join(ch if ch.isalnum() else "-" for ch in exercise_key).strip("-")
 
@@ -1073,11 +1321,10 @@ def main():
 
         inject_webrtc_styles()
 
-    st.divider()
-
     user_id = st.session_state.get("user_id", 0)
 
-    if isinstance(user_id, int):
+    if isinstance(user_id, int) and app_mode == "Dashboard / History":
+        st.divider()
         render_gamification_dashboard(user_id)
         st.divider()
 

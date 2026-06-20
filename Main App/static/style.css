@@ -1040,12 +1040,177 @@ button[kind="secondaryFormSubmit"]:hover {
   font-weight: 900;
 }
 
+/* =========================================================
+   AI Fitness Arena
+========================================================= */
+
+.arena-room-card,
+.leaderboard-card,
+.player-pill,
+.activity-feed {
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, rgba(33, 22, 47, 0.96), rgba(15, 11, 24, 0.84));
+  box-shadow: var(--shadow);
+}
+
+.arena-room-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+  align-items: stretch;
+  border-radius: 28px;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  margin: 1rem 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.arena-room-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -6rem -8rem auto;
+  width: 18rem;
+  height: 18rem;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.22), transparent 68%);
+  pointer-events: none;
+}
+
+.arena-room-card h1 {
+  margin: 0.2rem 0;
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  line-height: 0.9;
+}
+
+.arena-room-meta {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.arena-room-meta span,
+.leaderboard-stats span {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 0.85rem;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arena-room-meta strong,
+.leaderboard-stats strong {
+  display: block;
+  color: var(--text);
+  font-size: 1rem;
+  margin-top: 0.35rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.player-list,
+.leaderboard-grid {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.player-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.player-pill {
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  color: var(--text);
+  font-weight: 900;
+}
+
+.player-pill span {
+  float: right;
+  color: var(--pink);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.leaderboard-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.leaderboard-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 1rem;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.leaderboard-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(236, 72, 153, 0.42);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.54), var(--glow);
+}
+
+.rank-pill {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: #111;
+  font-weight: 950;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  box-shadow: var(--glow);
+}
+
+.leaderboard-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.leaderboard-card p {
+  color: var(--muted);
+  margin: 0.75rem 0 0;
+}
+
+.activity-feed {
+  list-style: none;
+  padding: 1rem;
+  border-radius: 24px;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.activity-feed li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.activity-feed li:last-child {
+  border-bottom: 0;
+}
+
+.activity-feed span {
+  color: var(--pink);
+  min-width: 8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 980px) {
   .feature-grid,
   .active-grid,
   .reward-grid,
   .badge-grid,
-  .exercise-preview {
+  .exercise-preview,
+  .arena-room-card,
+  .leaderboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1063,7 +1228,11 @@ button[kind="secondaryFormSubmit"]:hover {
   .reward-grid,
   .reward-split,
   .badge-grid,
-  .exercise-preview {
+  .exercise-preview,
+  .arena-room-card,
+  .leaderboard-grid,
+  .player-list,
+  .leaderboard-stats {
     grid-template-columns: 1fr;
   }
 
