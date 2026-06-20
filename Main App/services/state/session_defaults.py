@@ -24,6 +24,9 @@ def initial_session_defaults():
         "coach_feedback": "",
         "audio_played": True,
         "audio_pause_until": 0.0,
+        "gamification_result": None,
+        "gamification_processed": False,
+        "workout_started_at": 0.0,
 
         # Workout plan (set before starting)
         "workout_started": False,

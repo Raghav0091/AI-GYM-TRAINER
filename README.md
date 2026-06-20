@@ -2,6 +2,8 @@
 
 AI Real-time Gym Coach is a Streamlit fitness app that uses your webcam to analyze exercise form, count reps, score movement quality, store workout history, and provide AI voice coaching.
 
+Version 3 adds a game-style progression system so workouts feel more rewarding: earn XP, level up, unlock badges, protect streaks, complete daily challenges, and compare progress on a local leaderboard.
+
 ## Features
 
 - Real-time pose detection with MediaPipe
@@ -13,6 +15,8 @@ AI Real-time Gym Coach is a Streamlit fitness app that uses your webcam to analy
 - Groq-powered AI coach feedback
 - gTTS voice playback with visible debugging audio player
 - SQLite workout history and dashboard charts
+- XP, levels, streaks, achievements, personal records, and daily challenges
+- Local leaderboard foundation for future multiplayer scoring
 
 ## Exercises
 
@@ -54,9 +58,10 @@ Use Python 3.11. MediaPipe commonly fails on Python 3.13, so avoid Python 3.13 f
 cd "C:\Apna_colleage Projects\ai-gym-coach-main\Main App"
 python -m venv ..\AI_gym
 ..\AI_gym\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
+
+If you are not using `uv`, install with `python -m pip install -r requirements.txt`.
 
 ## Environment Variables
 
@@ -89,6 +94,30 @@ http://localhost:8501
 - Passwords are hashed before storing in SQLite.
 - Existing local users without passwords are upgraded when they log in.
 - The local SQLite database is ignored by Git and should not be pushed.
+
+## Gamification System
+
+The app now tracks progression in SQLite:
+
+- `workout_sessions` stores completed workout summaries, XP, form score, and calories estimate.
+- `user_progress` stores total XP, current level, streaks, workouts, reps, sets, and time.
+- `achievements` and `user_achievements` store badge definitions and unlocks.
+- `daily_challenges` and `user_daily_challenges` store one local challenge per day.
+- `personal_records` stores best reps, best form score, longest workout, and plank hold records.
+
+XP is awarded from workout completion, reps, sets, form score, streak bonuses, daily challenges, and achievement rewards.
+
+Level progress uses a scalable formula:
+
+```text
+XP required for next level = 250 * current_level * 1.25
+```
+
+Default badges include First Workout, 100 Total Reps, 500 Total Reps, Squat Starter, Push-up Warrior, Consistency Rookie, Weekly Beast, Perfect Form, and Workout Grinder.
+
+Daily challenges are generated locally from templates, so Groq is not required for challenge creation. Challenge rewards are only awarded once.
+
+The local leaderboard ranks users on the same device by XP, reps, streaks, workouts, and best form score. The scoring service includes a future multiplayer hook for rooms, live scores, and team challenges later.
 
 ## Camera Troubleshooting
 
@@ -126,6 +155,7 @@ Ignored files include:
 - `data.db`
 - `*.db`
 - `.streamlit/secrets.toml`
+- `.vscode/`
 
 ## ML Roadmap
 
@@ -146,3 +176,5 @@ Add screenshots here:
 - Form score sidebar
 - Dashboard
 - Workout history
+- XP reward screen
+- Achievements and leaderboard

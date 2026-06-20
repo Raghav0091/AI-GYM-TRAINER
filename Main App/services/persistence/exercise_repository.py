@@ -20,6 +20,10 @@ def _get_connection() -> sqlite3.Connection:
     return conn
 
 
+def get_connection() -> sqlite3.Connection:
+    return _get_connection()
+
+
 def init_db() -> None:
     conn = _get_connection()
 
@@ -58,6 +62,107 @@ def init_db() -> None:
 
         if "form_score_samples" not in columns:
             conn.execute("ALTER TABLE exercises ADD COLUMN form_score_samples INTEGER DEFAULT 0")
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_sessions (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id            INTEGER NOT NULL REFERENCES users(id),
+                exercise_name      TEXT    NOT NULL,
+                total_reps         INTEGER NOT NULL DEFAULT 0,
+                total_sets         INTEGER NOT NULL DEFAULT 0,
+                duration_seconds   INTEGER NOT NULL DEFAULT 0,
+                average_form_score INTEGER NOT NULL DEFAULT 0,
+                xp_earned          INTEGER NOT NULL DEFAULT 0,
+                calories_estimate  INTEGER NOT NULL DEFAULT 0,
+                created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_progress (
+                user_id            INTEGER PRIMARY KEY REFERENCES users(id),
+                total_xp           INTEGER NOT NULL DEFAULT 0,
+                current_level      INTEGER NOT NULL DEFAULT 1,
+                current_streak     INTEGER NOT NULL DEFAULT 0,
+                longest_streak     INTEGER NOT NULL DEFAULT 0,
+                total_workouts     INTEGER NOT NULL DEFAULT 0,
+                total_reps         INTEGER NOT NULL DEFAULT 0,
+                total_sets         INTEGER NOT NULL DEFAULT 0,
+                total_time_seconds INTEGER NOT NULL DEFAULT 0,
+                last_workout_date  TEXT,
+                updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS achievements (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                code            TEXT UNIQUE NOT NULL,
+                name            TEXT NOT NULL,
+                description     TEXT NOT NULL,
+                icon            TEXT NOT NULL DEFAULT '*',
+                xp_reward       INTEGER NOT NULL DEFAULT 0,
+                condition_type  TEXT NOT NULL,
+                condition_value INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_achievements (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL REFERENCES users(id),
+                achievement_id INTEGER NOT NULL REFERENCES achievements(id),
+                unlocked_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, achievement_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_challenges (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                title          TEXT NOT NULL,
+                description    TEXT NOT NULL,
+                exercise_name  TEXT NOT NULL,
+                target_reps    INTEGER NOT NULL DEFAULT 0,
+                target_sets    INTEGER NOT NULL DEFAULT 0,
+                target_form    INTEGER NOT NULL DEFAULT 0,
+                xp_reward      INTEGER NOT NULL DEFAULT 0,
+                challenge_date TEXT UNIQUE NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_daily_challenges (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id       INTEGER NOT NULL REFERENCES users(id),
+                challenge_id  INTEGER NOT NULL REFERENCES daily_challenges(id),
+                progress_reps INTEGER NOT NULL DEFAULT 0,
+                progress_sets INTEGER NOT NULL DEFAULT 0,
+                completed     INTEGER NOT NULL DEFAULT 0,
+                completed_at  TIMESTAMP,
+                UNIQUE(user_id, challenge_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS personal_records (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id       INTEGER NOT NULL REFERENCES users(id),
+                exercise_name TEXT NOT NULL,
+                record_type   TEXT NOT NULL,
+                record_value  INTEGER NOT NULL DEFAULT 0,
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, exercise_name, record_type)
+            )
+            """
+        )
 
 
 def get_user(username: str) -> sqlite3.Row:

@@ -13,6 +13,16 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
 from services.tracking.metrics import sync_metrics_update
 from services.persistence.exercise_repository import get_users_exercises
+from services.gamification.achievement_service import get_achievements_for_user
+from services.gamification.challenge_service import get_user_daily_challenge
+from services.gamification.progression_service import (
+    bootstrap_gamification,
+    finalize_workout,
+    get_leaderboard,
+    get_personal_records,
+    get_user_progress,
+)
+from services.gamification.scoring_service import level_progress
 from groq import Groq
 from dotenv import find_dotenv, load_dotenv
 from services.coaching.llm import LLMCoach
@@ -181,6 +191,186 @@ def render_session_summary(summary):
     )
 
 
+def render_level_card(progress):
+    level = level_progress(progress.get("total_xp", 0))
+    st.markdown(
+        f"""
+        <div class="level-card">
+            <div>
+                <div class="section-kicker">Level {level["level"]} Athlete</div>
+                <h3>{progress.get("total_xp", 0)} XP</h3>
+                <p>{level["xp_into_level"]} / {level["xp_needed"]} XP to Level {level["next_level"]}</p>
+            </div>
+            <div class="level-ring">{int(level["progress"] * 100)}%</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.progress(level["progress"])
+
+
+def render_daily_challenge_card(challenge):
+    progress_label = "Workout"
+    progress_value = 1 if challenge.get("completed") else 0
+    progress_target = 1
+
+    if challenge.get("target_reps", 0):
+        progress_label = "Reps"
+        progress_value = challenge.get("progress_reps", 0)
+        progress_target = challenge.get("target_reps", 1)
+    elif challenge.get("target_sets", 0):
+        progress_label = "Sets"
+        progress_value = challenge.get("progress_sets", 0)
+        progress_target = challenge.get("target_sets", 1)
+    elif challenge.get("target_form", 0):
+        progress_label = "Form Score"
+        progress_target = challenge.get("target_form", 1)
+
+    st.markdown(
+        f"""
+        <div class="challenge-card">
+            <div class="section-kicker">Today's Challenge</div>
+            <h3>{safe_text(challenge.get("title", "Daily Challenge"))}</h3>
+            <p>{safe_text(challenge.get("description", ""))}</p>
+            <div class="challenge-meta">
+                <span>{safe_text(progress_label)}: {progress_value} / {progress_target}</span>
+                <strong>+{challenge.get("xp_reward", 0)} XP</strong>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.progress(min(1.0, progress_value / max(1, progress_target)))
+
+
+def render_reward_screen(result):
+    if not result:
+        return
+
+    workout = result["workout"]
+    progress = result["progress"]
+    level = result["level_progress"]
+    achievements = result.get("achievements", [])
+    records = result.get("personal_records", [])
+    challenge = result.get("challenge", {})
+    challenge_info = challenge.get("challenge", {})
+    challenge_status = "Completed" if challenge.get("completed_now") else "In progress"
+    achievement_html = "".join(
+        f"<li><strong>{safe_text(item['name'])}</strong> +{item['xp_reward']} XP</li>"
+        for item in achievements
+    ) or "<li>No new badges this time. Keep stacking progress.</li>"
+    record_html = "".join(
+        f"<li><strong>{safe_text(item['label'])}</strong>: {item['record_value']}</li>"
+        for item in records
+    ) or "<li>No new PR, but the session still moved you forward.</li>"
+
+    st.markdown(
+        f"""
+        <div class="reward-screen">
+            <div class="reward-kicker">Workout Complete</div>
+            <h2>{safe_text(workout["exercise_name"])}</h2>
+            <div class="reward-grid">
+                <div><span>Reps</span><strong>{workout["total_reps"]}</strong></div>
+                <div><span>Sets</span><strong>{workout["total_sets"]}</strong></div>
+                <div><span>Form</span><strong>{workout["average_form_score"]}/100</strong></div>
+                <div><span>XP</span><strong>+{result["xp_earned"]}</strong></div>
+            </div>
+            <div class="reward-split">
+                <div>
+                    <h3>Level Progress</h3>
+                    <p>Level {progress["current_level"]} | {level["xp_into_level"]} / {level["xp_needed"]} XP to Level {level["next_level"]}</p>
+                    <p>Workout score: {result["workout_score"]} | Calories estimate: {result["calories_estimate"]}</p>
+                </div>
+                <div>
+                    <h3>Daily Challenge</h3>
+                    <p>{safe_text(challenge_info.get("title", "Daily Challenge"))}: {challenge_status}</p>
+                    <p>Bonus: +{challenge.get("xp_awarded", 0)} XP</p>
+                </div>
+            </div>
+            <div class="reward-split">
+                <div>
+                    <h3>Achievements</h3>
+                    <ul>{achievement_html}</ul>
+                </div>
+                <div>
+                    <h3>Personal Records</h3>
+                    <ul>{record_html}</ul>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_gamification_dashboard(user_id):
+    progress = get_user_progress(user_id)
+    challenge = get_user_daily_challenge(user_id)
+    achievements = get_achievements_for_user(user_id)
+    records = get_personal_records(user_id)
+    leaderboard = get_leaderboard()
+
+    render_section_header("Progression", "XP, levels, streaks, daily challenges, badges, and local rankings.")
+    render_level_card(progress)
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Current Streak", f"{progress['current_streak']} days")
+    col2.metric("Longest Streak", f"{progress['longest_streak']} days")
+    col3.metric("Total XP", progress["total_xp"])
+
+    render_daily_challenge_card(challenge)
+
+    unlocked_count = sum(1 for item in achievements if item.get("unlocked_at"))
+    st.markdown("##### Achievements")
+    badge_html = "".join(
+        f"""
+        <div class="badge-card {'badge-card--locked' if not item.get('unlocked_at') else ''}">
+            <div class="badge-icon">{safe_text(item['icon'])}</div>
+            <h4>{safe_text(item['name'])}</h4>
+            <p>{safe_text(item['description'])}</p>
+            <span>{'Unlocked' if item.get('unlocked_at') else '+' + str(item['xp_reward']) + ' XP'}</span>
+        </div>
+        """
+        for item in achievements
+    )
+    st.markdown(
+        f"<p class='section-subtitle'>{unlocked_count} / {len(achievements)} badges unlocked</p><div class='badge-grid'>{badge_html}</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("##### Personal Records")
+    if records:
+        st.dataframe(
+            pd.DataFrame(records)[["exercise_name", "record_type", "record_value", "created_at"]],
+            width="stretch",
+            hide_index=True,
+        )
+    else:
+        st.info("End a workout to set your first personal record.")
+
+    st.markdown("##### Local Leaderboard")
+    if leaderboard:
+        leaderboard_df = pd.DataFrame(leaderboard)
+        leaderboard_df.index = leaderboard_df.index + 1
+        st.dataframe(
+            leaderboard_df.rename(
+                columns={
+                    "username": "User",
+                    "current_level": "Level",
+                    "total_xp": "XP",
+                    "total_reps": "Total Reps",
+                    "current_streak": "Streak",
+                    "longest_streak": "Best Streak",
+                    "total_workouts": "Workouts",
+                    "best_form_score": "Best Form",
+                }
+            ),
+            width="stretch",
+        )
+    else:
+        st.info("Leaderboard unlocks after the first workout.")
+
+
 def render_exercise_tutorial(exercise):
     tutorial = EXERCISE_TUTORIALS.get(exercise, {})
     steps = tutorial.get("steps", [])
@@ -270,15 +460,37 @@ def reset_workout_state(plan_exercise, plan_sets, plan_reps):
     st.session_state.average_form_score = 0
     st.session_state.session_summary = ""
     st.session_state.summary_generated = False
+    st.session_state.gamification_result = None
+    st.session_state.gamification_processed = False
     st.session_state.audio_to_play = None
     st.session_state.coach_feedback = ""
     st.session_state.audio_played = True
     st.session_state.audio_pause_until = 0.0
     st.session_state.workout_started = True
+    st.session_state.workout_started_at = time.time()
     st.session_state.set_cycle_started_at = time.time()
     st.session_state.last_saved_sets_completed = 0
     st.session_state.last_notified_sets_completed = 0
     st.session_state.last_notified_workout_complete = False
+
+
+def complete_workout_session(exercise):
+    if st.session_state.get("gamification_processed"):
+        return st.session_state.get("gamification_result")
+
+    started_at = st.session_state.get("workout_started_at") or st.session_state.get("set_cycle_started_at") or time.time()
+    workout = {
+        "exercise_name": exercise,
+        "total_reps": int(st.session_state.get("reps", 0)),
+        "total_sets": int(st.session_state.get("sets_completed", 0)),
+        "duration_seconds": max(1, int(time.time() - started_at)),
+        "average_form_score": int(st.session_state.get("average_form_score") or st.session_state.get("form_score", 0)),
+    }
+
+    result = finalize_workout(st.session_state.get("user_id"), workout)
+    st.session_state.gamification_result = result
+    st.session_state.gamification_processed = True
+    return result
 
 
 def generate_session_summary(exercise):
@@ -288,12 +500,17 @@ def generate_session_summary(exercise):
     sets_completed = st.session_state.get("sets_completed", 0)
     total_reps = st.session_state.get("reps", 0)
     form_score = st.session_state.get("average_form_score") or st.session_state.get("form_score", 0)
+    gamification = st.session_state.get("gamification_result") or {}
+    progress = gamification.get("progress", {})
+    xp_earned = gamification.get("xp_earned", 0)
+    current_level = progress.get("current_level", 1)
     pipeline = st.session_state.get("voice_pipeline")
 
     if not pipeline:
         st.session_state.session_summary = (
             f"AI summary unavailable because GROQ_API_KEY is missing. "
-            f"{exercise}: {sets_completed} sets, {total_reps} reps, form score {form_score}/100."
+            f"{exercise}: {sets_completed} sets, {total_reps} reps, form score {form_score}/100, "
+            f"+{xp_earned} XP earned."
         )
         st.session_state.summary_generated = True
         return
@@ -304,11 +521,14 @@ def generate_session_summary(exercise):
             sets_completed=sets_completed,
             total_reps=total_reps,
             form_score=form_score,
+            xp_earned=xp_earned,
+            current_level=current_level,
         )
     except Exception as exc:
         st.warning(f"AI session summary failed: {exc}")
         st.session_state.session_summary = (
             f"{exercise}: {sets_completed} sets, {total_reps} reps, form score {form_score}/100. "
+            f"You earned {xp_earned} XP and reached Level {current_level}. "
             "Keep your movement controlled and review form cues before the next session."
         )
 
@@ -379,6 +599,7 @@ def main():
     inject_local_font(os.path.join(os.getcwd(), "static", "AdobeClean.otf"), "AdobeClean")
 
     init_db()
+    bootstrap_gamification()
 
     if not render_login_wall():
         return 
@@ -413,6 +634,18 @@ def main():
             st.caption(f"👤 Login as {st.session_state.username}")
 
         st.divider()
+
+        progress = get_user_progress(st.session_state.get("user_id"))
+        st.markdown(
+            f"""
+            <div class="sidebar-card sidebar-card--section">
+                <div class="sidebar-card__label">Progression</div>
+                <div class="sidebar-card__value">Level {progress['current_level']} | {progress['total_xp']} XP</div>
+                <div class="sidebar-card__label">Streak: {progress['current_streak']} days</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         st.markdown(
             """
@@ -460,6 +693,7 @@ def main():
             end_session_button = st.button("End Workout", key="end_session_button", width="stretch")
 
             if end_session_button:
+                complete_workout_session(exercise)
                 generate_session_summary(exercise)
                 st.session_state.workout_started = False
                 
@@ -579,6 +813,9 @@ def main():
     if st.session_state.get("session_summary") and not workout_started:
         render_session_summary(st.session_state.session_summary)
 
+    if st.session_state.get("gamification_result") and not workout_started:
+        render_reward_screen(st.session_state.gamification_result)
+
     if not workout_started:
         render_start_screen()
         render_exercise_tutorial(st.session_state.get("plan_exercise", "Squats"))
@@ -619,6 +856,9 @@ def main():
     user_id = st.session_state.get("user_id", 0)
 
     if isinstance(user_id, int):
+        render_gamification_dashboard(user_id)
+        st.divider()
+
         history_rows = get_users_exercises(user_id)
         render_workout_dashboard(history_rows)
 
