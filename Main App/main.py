@@ -72,34 +72,47 @@ def render_section_header(title, subtitle=""):
 def render_start_screen():
     st.markdown(
         """
-        <section class="hero">
-            <div class="hero-badge">AI FITNESS COACH</div>
-            <h1>Train Smarter.<br>Move Better.<br>Track Everything.</h1>
-            <p>
-                Real-time AI powered workout analysis with voice coaching.
-            </p>
-            <div class="callout">
-                Build your workout plan in the sidebar, start the camera, and let AI coach every rep.
+        <section class="hero hero-pro">
+            <div class="hero-panel">
+                <div class="hero-badge">AI FITNESS COACH</div>
+                <h1>Train Smarter.<br>Move Better.<br>Level Up.</h1>
+                <p>
+                    A real-time training console for rep tracking, form scoring, AI coaching,
+                    daily challenges, XP, and personal records.
+                </p>
+                <div class="hero-actions">
+                    <span>Choose a workout in the left panel</span>
+                    <strong>Camera analysis starts when you press Start Workout</strong>
+                </div>
+            </div>
+            <div class="hero-console">
+                <div class="console-orbit">
+                    <span>FORM</span>
+                    <strong>92</strong>
+                </div>
+                <div class="console-row"><span>Pose AI</span><strong>Ready</strong></div>
+                <div class="console-row"><span>Voice Coach</span><strong>Armed</strong></div>
+                <div class="console-row"><span>Daily XP</span><strong>+120</strong></div>
             </div>
         </section>
         <div class="feature-grid">
             <div class="glass-card feature-card">
-                <div class="feature-icon">AI</div>
+                <div class="feature-icon">01</div>
                 <h3>AI Voice Coach</h3>
                 <p>Short, focused coaching cues while you train.</p>
             </div>
             <div class="glass-card feature-card">
-                <div class="feature-icon">100</div>
+                <div class="feature-icon">02</div>
                 <h3>Form Score</h3>
                 <p>Live movement quality scoring for every session.</p>
             </div>
             <div class="glass-card feature-card">
-                <div class="feature-icon">UP</div>
+                <div class="feature-icon">03</div>
                 <h3>Progress Tracking</h3>
                 <p>See your reps, sets, time, and weekly trends.</p>
             </div>
             <div class="glass-card feature-card">
-                <div class="feature-icon">REP</div>
+                <div class="feature-icon">04</div>
                 <h3>Real-time Rep Counter</h3>
                 <p>Automatic counting through live pose detection.</p>
             </div>
@@ -595,7 +608,7 @@ def main():
         page_icon="🏋️‍♀️",
         page_title="AI Real-time GYM Coach",
         initial_sidebar_state="expanded",
-        layout="centered"
+        layout="wide"
     )
     load_environment()
 
@@ -618,9 +631,9 @@ def main():
         st.markdown(
             f"""
             <div class="sidebar-brand">
-                <div class="sidebar-brand__kicker">Premium Training</div>
+                <div class="sidebar-brand__kicker">Training OS</div>
                 <div class="sidebar-brand__title">AI Gym Coach</div>
-                <div class="sidebar-brand__caption">Form intelligence for every rep.</div>
+                <div class="sidebar-brand__caption">Live form intelligence, XP, and coaching.</div>
             </div>
             <div class="sidebar-card profile-card">
                 <div class="profile-avatar">R</div>
@@ -693,6 +706,11 @@ def main():
             reps = st.session_state.get("reps_per_set")
 
             st.info(f"**{exercise}** -- {sets} Sets / {reps} Reps")
+            st.session_state.show_pose_overlay = st.toggle(
+                "Show pose guide lines",
+                value=st.session_state.get("show_pose_overlay", False),
+                help="Turn this on only when debugging body landmark detection.",
+            )
 
             end_session_button = st.button("End Workout", key="end_session_button", width="stretch")
 
@@ -834,7 +852,11 @@ def main():
                 video_processor_factory=VideoProcessorClass,
                 rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
                 media_stream_constraints={
-                    "video": True,
+                    "video": {
+                        "width": {"ideal": 960},
+                        "height": {"ideal": 540},
+                        "frameRate": {"ideal": 30, "max": 60},
+                    },
                     "audio": False
                 },
                 async_processing=True
@@ -843,6 +865,9 @@ def main():
             st.error(f"Camera/WebRTC failed to start: {exc}")
             st.info("Check browser camera permission, close other apps using the webcam, then restart the workout.")
             context = None
+
+        if context and getattr(context, "video_processor", None):
+            context.video_processor.set_draw_pose_overlay(st.session_state.get("show_pose_overlay", False))
 
         sync_metrics_update(context)
 

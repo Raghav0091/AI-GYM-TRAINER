@@ -27,6 +27,7 @@ def initial_session_defaults():
         "gamification_result": None,
         "gamification_processed": False,
         "workout_started_at": 0.0,
+        "show_pose_overlay": False,
 
         # Workout plan (set before starting)
         "workout_started": False,

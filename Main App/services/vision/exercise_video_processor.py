@@ -4,6 +4,7 @@ import av
 import numpy as np
 import mediapipe as mp
 import threading
+import time
 from pathlib import Path
 from streamlit_webrtc import VideoProcessorBase
 from mediapipe.tasks import python
@@ -27,6 +28,7 @@ class VideoProcessorClass(VideoProcessorBase):
         self._lock = threading.Lock()
         self._latest_metrics = None
         self._exercise_type = "Squats"
+        self._started_at = time.perf_counter()
 
         app_root = Path(__file__).resolve().parents[2]
         model_path = str(app_root / "ml_models" / "pose_landmarker_full.task")
@@ -35,9 +37,9 @@ class VideoProcessorClass(VideoProcessorBase):
         options = vision.PoseLandmarkerOptions(
             base_options=base_option,
             running_mode=vision.RunningMode.VIDEO,
-            min_pose_detection_confidence=0.7,
-            min_pose_presence_confidence=0.7,
-            min_tracking_confidence=0.7,
+            min_pose_detection_confidence=0.55,
+            min_pose_presence_confidence=0.55,
+            min_tracking_confidence=0.55,
             output_segmentation_masks=False
         )
 
@@ -58,6 +60,7 @@ class VideoProcessorClass(VideoProcessorBase):
         }
 
         self._frame_timestamps_ms = 0
+        self._draw_pose_overlay = False
 
     def set_latest_metrics(self, metrics):
         with self._lock:
@@ -75,6 +78,14 @@ class VideoProcessorClass(VideoProcessorBase):
         with self._lock:
             return self._exercise_type
 
+    def set_draw_pose_overlay(self, enabled):
+        with self._lock:
+            self._draw_pose_overlay = bool(enabled)
+
+    def get_draw_pose_overlay(self):
+        with self._lock:
+            return self._draw_pose_overlay
+
     def _draw_skeleton(self, img, landmarks):
         h, w = img.shape[:2]
 
@@ -87,8 +98,9 @@ class VideoProcessorClass(VideoProcessorBase):
                     img,
                     (int(p1.x * w), int(p1.y * h)),
                     (int(p2.x * w), int(p2.y * h)),
-                    (0, 255, 0),
-                    8
+                    (0, 186, 255),
+                    3,
+                    cv2.LINE_AA,
                 )
 
         for lm in landmarks:
@@ -96,8 +108,8 @@ class VideoProcessorClass(VideoProcessorBase):
                 cv2.circle(
                     img,
                     (int(lm.x * w), int(lm.y * h)),
-                    8,
-                    (255, 0, 0),
+                    5,
+                    (255, 122, 0),
                     -1
                 )
 
@@ -303,13 +315,14 @@ class VideoProcessorClass(VideoProcessorBase):
             data=cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         )
 
-        self._frame_timestamps_ms += 30
+        self._frame_timestamps_ms = int((time.perf_counter() - self._started_at) * 1000)
         result = self._landmarker.detect_for_video(mp_image, self._frame_timestamps_ms)
 
         if result.pose_landmarks:
             landmarks = result.pose_landmarks[0]
 
-            self._draw_skeleton(image, landmarks)
+            if self.get_draw_pose_overlay():
+                self._draw_skeleton(image, landmarks)
 
             ex_type = self.get_exercise()
 
