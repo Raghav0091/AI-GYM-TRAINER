@@ -26,19 +26,24 @@ def sync_metrics_update(context):
     if not latest_metrics:
         return
 
-    st.session_state.camera_status = "Camera active"
+    st.session_state.camera_status = latest_metrics.get("camera_status", "Camera active")
     st.session_state.detector_stage = latest_metrics.get("stage", st.session_state.get("detector_stage", "setup"))
     st.session_state.landmark_confidence = latest_metrics.get("landmark_confidence", st.session_state.get("landmark_confidence", 0.0))
     st.session_state.camera_guidance = latest_metrics.get("camera_guidance", st.session_state.get("camera_guidance", "Keep your full body visible."))
     st.session_state.processing_status = latest_metrics.get("processing_status", st.session_state.get("processing_status", "tracking"))
     st.session_state.frame_error = latest_metrics.get("frame_error", "")
+    st.session_state.detector_issue = latest_metrics.get("issue")
+    st.session_state.is_valid_rep = latest_metrics.get("is_valid_rep", False)
+    st.session_state.detector_debug = latest_metrics.get("debug", {})
     
     reps = latest_metrics.get("reps", 0)
+    hold_seconds = int(latest_metrics.get("hold_seconds", 0) or 0)
 
     if reps is None:
         reps = 0
         
-    st.session_state.reps = reps
+    st.session_state.reps = 0 if exercise == "Plank" else reps
+    st.session_state.hold_seconds = hold_seconds
 
     fields = METRICS_FIELDS.get(exercise)
 
@@ -53,7 +58,11 @@ def sync_metrics_update(context):
     reps_per_set = st.session_state.get("reps_per_set", 0)
     target_sets = st.session_state.get("target_sets", 0)
 
-    if reps is not None and reps_per_set > 0 and target_sets > 0:
+    if exercise == "Plank" and reps_per_set > 0 and target_sets > 0:
+        sets_completed = hold_seconds // reps_per_set
+        current_set_reps = hold_seconds % reps_per_set
+        workout_completed = sets_completed >= target_sets
+    elif reps is not None and reps_per_set > 0 and target_sets > 0:
         sets_completed = reps // reps_per_set
         current_set_reps = reps % reps_per_set
         workout_completed = sets_completed >= target_sets 
@@ -78,7 +87,7 @@ def sync_metrics_update(context):
         add_exercise(
             user_id,
             exercise,
-            newly_completed * reps_per_set,
+            0 if exercise == "Plank" else newly_completed * reps_per_set,
             newly_completed,
             time_taken,
             st.session_state.get("average_form_score", 0),

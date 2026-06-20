@@ -33,11 +33,14 @@ def level_progress(total_xp: int) -> dict:
     }
 
 
-def calculate_xp(total_reps: int, total_sets: int, average_form_score: int, streak_bonus: int = 0) -> int:
+def calculate_xp(total_reps: int, total_sets: int, average_form_score: int, streak_bonus: int = 0, hold_seconds: int = 0) -> int:
+    hold_xp = max(0, hold_seconds) if hold_seconds else 0
+
     return (
         25
         + max(0, total_reps) * 2
         + max(0, total_sets) * 10
+        + hold_xp
         + int(round(max(0, average_form_score) * 0.5))
         + streak_bonus
     )

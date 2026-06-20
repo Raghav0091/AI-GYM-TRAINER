@@ -85,6 +85,7 @@ def finalize_workout(user_id: int, workout: dict) -> dict:
         workout["total_sets"],
         workout["average_form_score"],
         streak_bonus,
+        workout.get("hold_seconds", 0),
     )
     calories = calculate_calories_estimate(
         workout["exercise_name"],

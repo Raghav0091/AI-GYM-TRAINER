@@ -35,6 +35,9 @@ def initial_session_defaults():
         "processing_status": "waiting",
         "detector_stage": "setup",
         "frame_error": "",
+        "detector_issue": None,
+        "is_valid_rep": False,
+        "detector_debug": {},
 
         # Workout plan (set before starting)
         "workout_started": False,

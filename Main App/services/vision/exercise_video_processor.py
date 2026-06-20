@@ -9,18 +9,9 @@ from pathlib import Path
 from streamlit_webrtc import VideoProcessorBase
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from detectors.squat import SquatDetector
-from detectors.pushup import PushUpDetector
-from detectors.biceps_curl import BicepsCurlDetector
-from detectors.shoulder_press import ShoulderPressDetector
-from detectors.lunges import LungesDetector
-from detectors.jumping_jacks import JumpingJacksDetector
-from detectors.high_knees import HighKneesDetector
-from detectors.crunches import CrunchesDetector
-from detectors.situps import SitUpsDetector
-from detectors.plank import PlankDetector
-from detectors.mountain_climbers import MountainClimbersDetector
 from services.config.workout_config import POSE_CONNECTIONS
+from services.vision.detector_base import standardize_detector_metrics
+from services.vision.detector_registry import build_detectors
 
 
 class VideoProcessorClass(VideoProcessorBase):
@@ -45,19 +36,7 @@ class VideoProcessorClass(VideoProcessorBase):
 
         self._landmarker = vision.PoseLandmarker.create_from_options(options)
 
-        self._detectors = {
-            "Squats": SquatDetector(),
-            "Push-ups": PushUpDetector(),
-            "Biceps Curls (Dumbbell)": BicepsCurlDetector(),
-            "Shoulder Press": ShoulderPressDetector(),
-            "Lunges": LungesDetector(),
-            "Jumping Jacks": JumpingJacksDetector(),
-            "High Knees": HighKneesDetector(),
-            "Crunches": CrunchesDetector(),
-            "Sit-ups": SitUpsDetector(),
-            "Plank": PlankDetector(),
-            "Mountain Climbers": MountainClimbersDetector(),
-        }
+        self._detectors = build_detectors()
 
         self._frame_timestamps_ms = 0
         self._draw_pose_overlay = False
@@ -326,12 +305,29 @@ class VideoProcessorClass(VideoProcessorBase):
                 detector = self._detectors.get(ex_type)
 
                 if detector:
-                    metrics = detector.process(landmarks)
+                    metrics = standardize_detector_metrics(
+                        ex_type,
+                        detector,
+                        detector.process(landmarks),
+                    )
                     metrics["pose_detected"] = True
                     metrics["selected_detector"] = ex_type
                     metrics["frame_timestamp_ms"] = self._frame_timestamps_ms
                     self._draw_overlays(image, metrics, ex_type)
                     self.set_latest_metrics(metrics)
+                else:
+                    self.set_latest_metrics(
+                        standardize_detector_metrics(
+                            ex_type,
+                            None,
+                            {
+                                "pose_detected": False,
+                                "camera_status": "Detector unavailable",
+                                "processing_status": "detector unavailable",
+                                "issue": "Detector not available for this exercise yet.",
+                            },
+                        )
+                    )
             else:
                 self._draw_no_pose_warnings(image)
                 self.set_latest_metrics(

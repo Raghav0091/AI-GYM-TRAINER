@@ -23,6 +23,7 @@ from services.gamification.progression_service import (
     get_user_progress,
 )
 from services.gamification.scoring_service import level_progress
+from services.vision.detector_registry import DETECTOR_REGISTRY
 from groq import Groq
 from dotenv import find_dotenv, load_dotenv
 from services.coaching.llm import LLMCoach
@@ -217,11 +218,17 @@ def render_workout_header():
 def render_active_workout_grid():
     exercise = st.session_state.get("exercise_type", "Workout")
     total_reps = st.session_state.get("reps", 0)
+    hold_seconds = st.session_state.get("hold_seconds", 0)
     sets_completed = st.session_state.get("sets_completed", 0)
     target_sets = st.session_state.get("target_sets", 0)
+    reps_per_set = st.session_state.get("reps_per_set", 0)
     form_score = st.session_state.get("form_score", 0)
     stage = st.session_state.get("detector_stage", "setup")
     duration = int(time.time() - (st.session_state.get("workout_started_at") or time.time()))
+    primary_label = "Hold Time" if exercise == "Plank" else "Reps"
+    primary_value = f"{int(hold_seconds)}s" if exercise == "Plank" else total_reps
+    target_label = "Target Hold" if exercise == "Plank" else "Sets"
+    target_value = f"{int(hold_seconds) % max(1, reps_per_set)} / {reps_per_set}s" if exercise == "Plank" else f"{sets_completed}/{target_sets}"
 
     st.markdown(
         f"""
@@ -235,12 +242,12 @@ def render_active_workout_grid():
                 <strong>{form_score}/100</strong>
             </div>
             <div class="active-card">
-                <span>Reps</span>
-                <strong>{total_reps}</strong>
+                <span>{safe_text(primary_label)}</span>
+                <strong>{primary_value}</strong>
             </div>
             <div class="active-card">
-                <span>Sets</span>
-                <strong>{sets_completed}/{target_sets}</strong>
+                <span>{safe_text(target_label)}</span>
+                <strong>{target_value}</strong>
             </div>
             <div class="active-card accent-purple">
                 <span>Stage</span>
@@ -357,6 +364,25 @@ def render_reward_screen(result):
         return
 
     workout = result["workout"]
+    if result.get("cancelled"):
+        st.markdown(
+            f"""
+            <div class="reward-screen reward-screen--cancelled">
+                <div class="reward-kicker">Workout Cancelled</div>
+                <h2>{safe_text(workout["exercise_name"])}</h2>
+                <p>{safe_text(result.get("message", "No valid movement was detected."))}</p>
+                <div class="reward-grid">
+                    <div><span>Reps</span><strong>{workout.get("total_reps", 0)}</strong></div>
+                    <div><span>Hold</span><strong>{int(workout.get("hold_seconds", 0))}s</strong></div>
+                    <div><span>Sets</span><strong>{workout.get("total_sets", 0)}</strong></div>
+                    <div><span>XP</span><strong>+0</strong></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
+
     progress = result["progress"]
     level = result["level_progress"]
     achievements = result.get("achievements", [])
@@ -364,6 +390,8 @@ def render_reward_screen(result):
     challenge = result.get("challenge", {})
     challenge_info = challenge.get("challenge", {})
     challenge_status = "Completed" if challenge.get("completed_now") else "In progress"
+    primary_label = "Hold" if workout["exercise_name"] == "Plank" else "Reps"
+    primary_value = f"{int(workout.get('hold_seconds', 0))}s" if workout["exercise_name"] == "Plank" else workout["total_reps"]
     achievement_html = "".join(
         f"<li><strong>{safe_text(item['name'])}</strong> +{item['xp_reward']} XP</li>"
         for item in achievements
@@ -379,7 +407,7 @@ def render_reward_screen(result):
             <div class="reward-kicker">Workout Complete</div>
             <h2>{safe_text(workout["exercise_name"])}</h2>
             <div class="reward-grid">
-                <div><span>Reps</span><strong>{workout["total_reps"]}</strong></div>
+                <div><span>{safe_text(primary_label)}</span><strong>{primary_value}</strong></div>
                 <div><span>Sets</span><strong>{workout["total_sets"]}</strong></div>
                 <div><span>Form</span><strong>{workout["average_form_score"]}/100</strong></div>
                 <div><span>XP</span><strong>+{result["xp_earned"]}</strong></div>
@@ -567,6 +595,7 @@ def reset_workout_state(plan_exercise, plan_sets, plan_reps):
     st.session_state.reps = 0
     st.session_state.current_set_reps = 0
     st.session_state.sets_completed = 0
+    st.session_state.hold_seconds = 0
     st.session_state.form_score = 0
     st.session_state.form_score_total = 0
     st.session_state.form_score_samples = 0
@@ -592,13 +621,36 @@ def complete_workout_session(exercise):
         return st.session_state.get("gamification_result")
 
     started_at = st.session_state.get("workout_started_at") or st.session_state.get("set_cycle_started_at") or time.time()
+    hold_seconds = int(st.session_state.get("hold_seconds", 0))
     workout = {
         "exercise_name": exercise,
-        "total_reps": int(st.session_state.get("reps", 0)),
+        "total_reps": 0 if exercise == "Plank" else int(st.session_state.get("reps", 0)),
         "total_sets": int(st.session_state.get("sets_completed", 0)),
         "duration_seconds": max(1, int(time.time() - started_at)),
         "average_form_score": int(st.session_state.get("average_form_score") or st.session_state.get("form_score", 0)),
+        "hold_seconds": hold_seconds,
     }
+
+    reps_per_set = int(st.session_state.get("reps_per_set", 0))
+    valid_workout = (
+        (hold_seconds >= 10 or workout["total_sets"] > 0)
+        if exercise == "Plank"
+        else ((workout["total_reps"] > 0 and workout["total_sets"] > 0) or (reps_per_set > 0 and workout["total_reps"] >= reps_per_set))
+    )
+
+    if not valid_workout:
+        result = {
+            "cancelled": True,
+            "workout": workout,
+            "xp_earned": 0,
+            "message": "Workout cancelled. No valid reps or hold time were detected, so no XP was awarded.",
+        }
+        st.session_state.gamification_result = result
+        st.session_state.gamification_processed = True
+        st.session_state.session_summary = result["message"]
+        st.session_state.summary_generated = True
+        st.session_state.coach_feedback = "Workout cancelled. I did not detect enough movement to save this session."
+        return result
 
     result = finalize_workout(st.session_state.get("user_id"), workout)
     st.session_state.gamification_result = result
@@ -779,17 +831,27 @@ def main():
         if not workout_started:
             plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
 
-            st.caption("Minimum 1 set and 5 reps required.")
+            if plan_exercise == "Plank" and st.session_state.get("plan_reps", 10) < 30:
+                st.session_state.plan_reps = 30
+
+            st.caption("Minimum 1 set and 5 reps required. For plank, use at least 10 hold seconds.")
 
             plan_sets = st.number_input("Sets", min_value=1, max_value=50, key="plan_sets", step=1)
 
-            plan_reps = st.number_input("Reps per Set", min_value=5, max_value=50, key="plan_reps", step=1)
+            if plan_exercise == "Plank":
+                plan_reps = st.number_input("Hold seconds per set", min_value=10, max_value=180, key="plan_reps", step=5)
+            else:
+                plan_reps = st.number_input("Reps per Set", min_value=5, max_value=50, key="plan_reps", step=1)
 
             st.markdown("")
 
             start_session_button = st.button("Start Workout", width="stretch", key="start_session_button")
 
             if start_session_button:
+                if plan_exercise not in DETECTOR_REGISTRY:
+                    st.error("Detector not available for this exercise yet.")
+                    st.stop()
+
                 reset_workout_state(plan_exercise, plan_sets, plan_reps)
 
                 if st.session_state.voice_pipeline:
@@ -817,11 +879,13 @@ def main():
             end_session_button = st.button("End Workout", key="end_session_button", width="stretch")
 
             if end_session_button:
-                complete_workout_session(exercise)
+                workout_result = complete_workout_session(exercise)
                 generate_session_summary(exercise)
                 st.session_state.workout_started = False
                 
-                if st.session_state.voice_pipeline:
+                if workout_result and workout_result.get("cancelled"):
+                    st.session_state.coach_feedback = "Workout cancelled. I did not detect enough movement to save this session."
+                elif st.session_state.voice_pipeline:
                     result = st.session_state.voice_pipeline.process_event(
                         event="workout_completed",
                         exercise=exercise,
@@ -852,7 +916,12 @@ def main():
             )
 
             st.metric("Total Reps", f"{total_reps}")
-            st.metric("Current Set Reps", f"{current_set_reps} / {reps_per_set}")
+            if exercise == "Plank":
+                st.metric("Hold Time", f"{st.session_state.get('hold_seconds', 0)}s")
+                st.metric("Current Hold", f"{current_set_reps} / {reps_per_set}s")
+                st.metric("Target Hold", f"{reps_per_set}s")
+            else:
+                st.metric("Current Set Reps", f"{current_set_reps} / {reps_per_set}")
             st.metric("Sets Completed", f"{sets_completed} / {target_sets}")
             st.metric("Form Score", f"{st.session_state.get('form_score', 0)} / 100")
             st.metric("Camera Status", st.session_state.get("camera_status", "Camera loading"))
@@ -864,6 +933,11 @@ def main():
                 st.caption(f"Landmark confidence: {st.session_state.get('landmark_confidence', 0)}")
                 st.caption(f"Processing: {st.session_state.get('processing_status', 'waiting')}")
                 st.caption(f"Guidance: {st.session_state.get('camera_guidance', '')}")
+                st.caption(f"Form score: {st.session_state.get('form_score', 0)}")
+                st.caption(f"Issue: {st.session_state.get('detector_issue') or 'None'}")
+                st.caption(f"Hold seconds: {st.session_state.get('hold_seconds', 0)}")
+                st.caption(f"Valid rep: {st.session_state.get('is_valid_rep', False)}")
+                st.json(st.session_state.get("detector_debug", {}))
                 if st.session_state.get("frame_error"):
                     st.warning(st.session_state.frame_error)
 

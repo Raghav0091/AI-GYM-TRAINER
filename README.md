@@ -163,6 +163,12 @@ Recent improvements include:
 - safer frame processing
 - stage and confidence debug metrics
 - more tolerant jumping-jack thresholds
+- a standard detector output adapter so missing detector fields do not crash the app
+- workout validation that cancels zero-rep or zero-hold sessions without awarding XP
+
+## Plank Tracking
+
+Plank is treated as a time-based exercise, not a rep-based exercise. The app tracks hold seconds, current hold progress, completed sets, body alignment, hip position, and form score. A plank workout must include at least 10 valid hold seconds or a completed hold set before XP is awarded.
 
 ## Git Safety
 

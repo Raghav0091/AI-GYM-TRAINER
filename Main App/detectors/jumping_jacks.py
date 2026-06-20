@@ -13,11 +13,15 @@ class JumpingJacksDetector(BaseExercise):
     LEFT_ANKLE = 27
     RIGHT_ANKLE = 28
 
+    def __init__(self):
+        super().__init__()
+        self.reset()
+
     def reset(self):
         self.reps = 0
         self.stage = "closed"
-        self.open_score = 0
-        self.closed_score = 0
+        self._open_frames = 0
+        self._closed_frames = 0
 
     def process(self, landmarks):
         shoulder_width = abs(landmarks[self.LEFT_SHOULDER].x - landmarks[self.RIGHT_SHOULDER].x)
@@ -39,22 +43,22 @@ class JumpingJacksDetector(BaseExercise):
         )
 
         if key_visible and hands_overhead and feet_apart:
-            self.open_score += 1
-            self.closed_score = 0
+            self._open_frames += 1
+            self._closed_frames = 0
         elif key_visible and hands_down and feet_closed:
-            self.closed_score += 1
-            self.open_score = 0
+            self._closed_frames += 1
+            self._open_frames = 0
         elif key_visible:
-            self.open_score = max(0, self.open_score - 1)
-            self.closed_score = max(0, self.closed_score - 1)
+            self._open_frames = max(0, self._open_frames - 1)
+            self._closed_frames = max(0, self._closed_frames - 1)
 
-        if self.open_score >= 1 and self.stage == "closed":
+        if self._open_frames >= 1 and self.stage == "closed":
             self.stage = "open"
 
-        if self.closed_score >= 1 and self.stage == "open":
+        if self._closed_frames >= 1 and self.stage == "open":
             self.stage = "closed"
             self.reps += 1
-            self.closed_score = 0
+            self._closed_frames = 0
 
         arm_status = "HANDS UP" if hands_overhead else "RAISE ARMS"
         foot_status = "FEET APART" if feet_apart else "FEET TOGETHER"

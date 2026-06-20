@@ -15,12 +15,13 @@ class PlankDetector(BaseExercise):
 
     def __init__(self):
         super().__init__()
-        self._started_at = None
+        self.reset()
 
     def reset(self):
         self.reps = 0
         self.stage = "hold"
-        self._started_at = None
+        self._hold_started_at = None
+        self._accumulated_hold_seconds = 0.0
 
     def process(self, landmarks):
         shoulder_idx = self.LEFT_SHOULDER if landmarks[self.LEFT_SHOULDER].visibility >= landmarks[self.RIGHT_SHOULDER].visibility else self.RIGHT_SHOULDER
@@ -44,12 +45,6 @@ class PlankDetector(BaseExercise):
             for idx in [shoulder_idx, hip_idx, ankle_idx]
         )
 
-        if key_visible and self._started_at is None:
-            self._started_at = time.time()
-
-        if key_visible and self._started_at is not None:
-            self.reps = int(time.time() - self._started_at)
-
         if body_angle > 160:
             body_alignment = "STRAIGHT"
         elif body_angle > 140:
@@ -64,9 +59,37 @@ class PlankDetector(BaseExercise):
         else:
             hip_status = "PIKED UP"
 
+        valid_hold = key_visible and body_alignment in ["STRAIGHT", "SLIGHT BEND"] and hip_status == "LEVEL"
+
+        if valid_hold and self._hold_started_at is None:
+            self._hold_started_at = time.time()
+            self.stage = "HOLD"
+        elif not valid_hold and self._hold_started_at is not None:
+            self._accumulated_hold_seconds += time.time() - self._hold_started_at
+            self._hold_started_at = None
+            self.stage = "PAUSED"
+
+        active_seconds = time.time() - self._hold_started_at if self._hold_started_at is not None else 0
+        hold_seconds = int(self._accumulated_hold_seconds + active_seconds)
+        self.reps = hold_seconds
+
+        issue = None
+        if not key_visible:
+            issue = "Shoulders, hips, and ankles must be visible."
+        elif hip_status == "SAGGING":
+            issue = "Lift your hips slightly and brace your core."
+        elif hip_status == "PIKED UP":
+            issue = "Lower your hips until your body forms a straight line."
+        elif body_alignment == "POOR FORM":
+            issue = "Keep your shoulders, hips, and ankles aligned."
+
         return {
-            "reps": self.reps,
-            "hold_seconds": self.reps,
+            "reps": 0,
+            "hold_seconds": hold_seconds,
             "body_alignment": body_alignment,
             "hip_status": hip_status,
+            "stage": self.stage,
+            "issue": issue,
+            "is_valid_rep": False,
+            "camera_status": "tracking" if key_visible else "low visibility",
         }
