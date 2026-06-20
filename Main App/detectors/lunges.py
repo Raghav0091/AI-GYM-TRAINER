@@ -1,4 +1,5 @@
 from core.base_exercise import BaseExercise
+from services.vision.pose_utils import angle_from_indices, get_landmark_visibility, smooth_value
 
 
 class LungesDetector(BaseExercise):
@@ -24,17 +25,8 @@ class LungesDetector(BaseExercise):
         self.stage = None
 
     def process(self, landmarks) -> dict:
-        left_knee_angle = self.calculate_angle(
-            self.get_point(landmarks, self.LEFT_HIP),
-            self.get_point(landmarks, self.LEFT_KNEE),
-            self.get_point(landmarks, self.LEFT_ANKLE),
-        )
-
-        right_knee_angle = self.calculate_angle(
-            self.get_point(landmarks, self.RIGHT_HIP),
-            self.get_point(landmarks, self.RIGHT_KNEE),
-            self.get_point(landmarks, self.RIGHT_ANKLE),
-        )
+        left_knee_angle = angle_from_indices(landmarks, self.LEFT_HIP, self.LEFT_KNEE, self.LEFT_ANKLE)
+        right_knee_angle = angle_from_indices(landmarks, self.RIGHT_HIP, self.RIGHT_KNEE, self.RIGHT_ANKLE)
 
         if left_knee_angle <= right_knee_angle:
             front_knee_angle = left_knee_angle
@@ -49,7 +41,9 @@ class LungesDetector(BaseExercise):
             front_ankle_idx = self.RIGHT_ANKLE
             shoulder_idx_for_torso = self.RIGHT_SHOULDER
 
-        key_landmarks_visible = landmarks[front_hip_idx].visibility > self.MIN_VISIBILITY and landmarks[front_knee_idx].visibility > self.MIN_VISIBILITY and landmarks[front_ankle_idx].visibility > self.MIN_VISIBILITY
+        visibility = get_landmark_visibility(landmarks, [front_hip_idx, front_knee_idx, front_ankle_idx, shoulder_idx_for_torso])
+        front_knee_angle = smooth_value("lunge_front_knee_angle", front_knee_angle)
+        key_landmarks_visible = visibility > self.MIN_VISIBILITY
 
         if key_landmarks_visible:
             if front_knee_angle < self.DOWN_THRESHOLD:
@@ -59,11 +53,7 @@ class LungesDetector(BaseExercise):
                 self.stage = "up"
                 self.reps += 1
 
-        torso_angle = self.calculate_angle(
-            self.get_point(landmarks, shoulder_idx_for_torso),
-            self.get_point(landmarks, front_hip_idx),
-            self.get_point(landmarks, front_knee_idx),
-        )
+        torso_angle = smooth_value("lunge_torso_angle", angle_from_indices(landmarks, shoulder_idx_for_torso, front_hip_idx, front_knee_idx))
 
         shoulder_mid_x = (landmarks[self.LEFT_SHOULDER].x + landmarks[self.RIGHT_SHOULDER].x) / 2
         hip_mid_x = (landmarks[self.LEFT_HIP].x + landmarks[self.RIGHT_HIP].x) / 2
@@ -79,5 +69,9 @@ class LungesDetector(BaseExercise):
             "front_knee_angle": int(front_knee_angle),
             "torso_angle": int(torso_angle),
             "balance_status": balance_status,
+            "stage": self.stage or "setup",
+            "landmark_confidence": round(visibility, 2),
+            "camera_guidance": "Side view good" if key_landmarks_visible else "Show hips, knees, ankles, and torso",
+            "processing_status": "tracking" if key_landmarks_visible else "low visibility",
         }
     

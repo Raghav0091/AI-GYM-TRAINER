@@ -35,6 +35,36 @@ def safe_text(value):
     return html.escape(str(value))
 
 
+CAMERA_ANGLE_HINTS = {
+    "Squats": "Side view",
+    "Push-ups": "Side view",
+    "Biceps Curls (Dumbbell)": "Front or side view",
+    "Shoulder Press": "Front view",
+    "Lunges": "Side view",
+    "Jumping Jacks": "Front view",
+    "High Knees": "Front view",
+    "Crunches": "Side view",
+    "Sit-ups": "Side view",
+    "Plank": "Side view",
+    "Mountain Climbers": "Side view",
+}
+
+
+DIFFICULTY_HINTS = {
+    "Squats": "Beginner",
+    "Push-ups": "Intermediate",
+    "Biceps Curls (Dumbbell)": "Beginner",
+    "Shoulder Press": "Intermediate",
+    "Lunges": "Intermediate",
+    "Jumping Jacks": "Beginner",
+    "High Knees": "Beginner",
+    "Crunches": "Beginner",
+    "Sit-ups": "Intermediate",
+    "Plank": "Beginner",
+    "Mountain Climbers": "Intermediate",
+}
+
+
 def load_environment():
     load_dotenv()
     env_path = find_dotenv(usecwd=True)
@@ -70,8 +100,14 @@ def render_section_header(title, subtitle=""):
 
 
 def render_start_screen():
+    selected_exercise = st.session_state.get("plan_exercise", "Squats")
+    tutorial = EXERCISE_TUTORIALS.get(selected_exercise, {})
+    muscles = tutorial.get("muscles", "Full body")
+    camera_angle = CAMERA_ANGLE_HINTS.get(selected_exercise, "Full body view")
+    difficulty = DIFFICULTY_HINTS.get(selected_exercise, "Beginner")
+
     st.markdown(
-        """
+        f"""
         <section class="hero hero-pro">
             <div class="hero-panel">
                 <div class="hero-badge">AI FITNESS COACH</div>
@@ -95,6 +131,16 @@ def render_start_screen():
                 <div class="console-row"><span>Daily XP</span><strong>+120</strong></div>
             </div>
         </section>
+        <div class="exercise-preview">
+            <div>
+                <div class="section-kicker">Selected Workout</div>
+                <h2>{safe_text(selected_exercise)}</h2>
+                <p>{safe_text(tutorial.get("description", "Get ready for a guided AI workout."))}</p>
+            </div>
+            <div class="preview-stat"><span>Muscles</span><strong>{safe_text(muscles)}</strong></div>
+            <div class="preview-stat"><span>Difficulty</span><strong>{safe_text(difficulty)}</strong></div>
+            <div class="preview-stat"><span>Camera</span><strong>{safe_text(camera_angle)}</strong></div>
+        </div>
         <div class="feature-grid">
             <div class="glass-card feature-card">
                 <div class="feature-icon">01</div>
@@ -122,6 +168,24 @@ def render_start_screen():
     )
 
 
+def render_camera_setup_tips():
+    st.markdown(
+        """
+        <div class="camera-tips">
+            <div class="section-kicker">Camera Setup Tips</div>
+            <ul>
+                <li>Allow camera permission in your browser.</li>
+                <li>Stand 2-3 meters away so your full body is visible.</li>
+                <li>Use good lighting and avoid very baggy clothing.</li>
+                <li>Use side view for squats, push-ups, lunges, planks, and sit-ups.</li>
+                <li>Use front view for curls, shoulder press, high knees, and jumping jacks.</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_workout_header():
     exercise = st.session_state.get("exercise_type", "Workout")
     sets_completed = st.session_state.get("sets_completed", 0)
@@ -129,6 +193,7 @@ def render_workout_header():
     reps = st.session_state.get("reps", 0)
     form_score = st.session_state.get("form_score", 0)
 
+    camera_status = st.session_state.get("camera_status", "Camera loading")
     st.markdown(
         f"""
         <div class="workout-card">
@@ -138,7 +203,10 @@ def render_workout_header():
                     <h2>{safe_text(exercise)}</h2>
                     <p>{sets_completed} / {target_sets} sets completed | {reps} total reps</p>
                 </div>
-                <div class="score-pill">Form Score {form_score} / 100</div>
+                <div class="status-stack">
+                    <div class="camera-pill">{safe_text(camera_status)}</div>
+                    <div class="score-pill">Form Score {form_score} / 100</div>
+                </div>
             </div>
         </div>
         """,
@@ -152,6 +220,8 @@ def render_active_workout_grid():
     sets_completed = st.session_state.get("sets_completed", 0)
     target_sets = st.session_state.get("target_sets", 0)
     form_score = st.session_state.get("form_score", 0)
+    stage = st.session_state.get("detector_stage", "setup")
+    duration = int(time.time() - (st.session_state.get("workout_started_at") or time.time()))
 
     st.markdown(
         f"""
@@ -172,6 +242,32 @@ def render_active_workout_grid():
                 <span>Sets</span>
                 <strong>{sets_completed}/{target_sets}</strong>
             </div>
+            <div class="active-card accent-purple">
+                <span>Stage</span>
+                <strong>{safe_text(stage)}</strong>
+            </div>
+            <div class="active-card">
+                <span>Duration</span>
+                <strong>{duration}s</strong>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_technique_card(exercise):
+    tutorial = EXERCISE_TUTORIALS.get(exercise, {})
+    mistakes = tutorial.get("mistakes", [])[:3]
+    mistake_html = "".join(f"<li>{safe_text(item)}</li>" for item in mistakes)
+    st.markdown(
+        f"""
+        <div class="technique-card">
+            <div class="section-kicker">Technique</div>
+            <h3>{safe_text(exercise)} guide</h3>
+            <p><strong>Recommended camera:</strong> {safe_text(CAMERA_ANGLE_HINTS.get(exercise, "Full body view"))}</p>
+            <p><strong>Focus:</strong> {safe_text(tutorial.get("muscles", "Full body"))}</p>
+            <ul>{mistake_html}</ul>
         </div>
         """,
         unsafe_allow_html=True,
@@ -664,6 +760,12 @@ def main():
             unsafe_allow_html=True,
         )
 
+        st.session_state.debug_mode = st.toggle(
+            "Advanced debug mode",
+            value=st.session_state.get("debug_mode", False),
+            help="Shows camera and detector internals for tuning rep counting.",
+        )
+
         st.markdown(
             """
             <div class="sidebar-card sidebar-card--section">
@@ -753,6 +855,17 @@ def main():
             st.metric("Current Set Reps", f"{current_set_reps} / {reps_per_set}")
             st.metric("Sets Completed", f"{sets_completed} / {target_sets}")
             st.metric("Form Score", f"{st.session_state.get('form_score', 0)} / 100")
+            st.metric("Camera Status", st.session_state.get("camera_status", "Camera loading"))
+            st.metric("Current Stage", st.session_state.get("detector_stage", "setup"))
+
+            if st.session_state.get("debug_mode", False):
+                st.markdown("##### Detector Debug")
+                st.caption(f"Selected detector: {exercise}")
+                st.caption(f"Landmark confidence: {st.session_state.get('landmark_confidence', 0)}")
+                st.caption(f"Processing: {st.session_state.get('processing_status', 'waiting')}")
+                st.caption(f"Guidance: {st.session_state.get('camera_guidance', '')}")
+                if st.session_state.get("frame_error"):
+                    st.warning(st.session_state.frame_error)
 
             st.divider()
 
@@ -828,6 +941,8 @@ def main():
     if workout_started:
         render_workout_header()
         render_active_workout_grid()
+        render_camera_setup_tips()
+        render_technique_card(st.session_state.get("exercise_type", "Squats"))
 
     if st.session_state.get("coach_feedback"):
         render_coach_card(st.session_state.coach_feedback)
@@ -864,6 +979,7 @@ def main():
         except Exception as exc:
             st.error(f"Camera/WebRTC failed to start: {exc}")
             st.info("Check browser camera permission, close other apps using the webcam, then restart the workout.")
+            st.session_state.camera_status = "Camera permission blocked"
             context = None
 
         if context and getattr(context, "video_processor", None):
@@ -872,7 +988,10 @@ def main():
         sync_metrics_update(context)
 
         if context and not context.state.playing:
+            st.session_state.camera_status = "Camera stopped"
             st.info("Camera is not streaming yet. Click Start in the camera panel and allow browser camera permission.")
+        elif context and context.state.playing:
+            st.session_state.camera_status = st.session_state.get("camera_status", "Camera active")
 
         if context and context.state.playing and time.time() >= st.session_state.get("audio_pause_until", 0.0):
             time.sleep(1.0)

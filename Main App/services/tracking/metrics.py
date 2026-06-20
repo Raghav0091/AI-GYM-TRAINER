@@ -25,6 +25,13 @@ def sync_metrics_update(context):
 
     if not latest_metrics:
         return
+
+    st.session_state.camera_status = "Camera active"
+    st.session_state.detector_stage = latest_metrics.get("stage", st.session_state.get("detector_stage", "setup"))
+    st.session_state.landmark_confidence = latest_metrics.get("landmark_confidence", st.session_state.get("landmark_confidence", 0.0))
+    st.session_state.camera_guidance = latest_metrics.get("camera_guidance", st.session_state.get("camera_guidance", "Keep your full body visible."))
+    st.session_state.processing_status = latest_metrics.get("processing_status", st.session_state.get("processing_status", "tracking"))
+    st.session_state.frame_error = latest_metrics.get("frame_error", "")
     
     reps = latest_metrics.get("reps", 0)
 
@@ -103,6 +110,10 @@ def sync_metrics_update(context):
                 
     pose_detected = latest_metrics.get("pose_detected", True)
     
+    if not pose_detected:
+        st.session_state.camera_status = "Pose not detected"
+        st.session_state.camera_guidance = latest_metrics.get("camera_guidance", "Move farther back so your full body is visible.")
+
     if not pose_detected and st.session_state.get("voice_pipeline"):
         result = st.session_state.voice_pipeline.process_event(
             event="no_pose_detected",

@@ -3,30 +3,33 @@
 ========================================================= */
 
 :root {
-  --bg: #0F0F0F;
-  --bg-2: #141414;
-  --card: #1A1A1A;
-  --panel: #111111;
-  --card-soft: rgba(26, 26, 26, 0.78);
-  --card-lift: rgba(34, 34, 34, 0.9);
+  --bg: #08060D;
+  --bg-2: #0F0B18;
+  --card: #171122;
+  --panel: #0F0B18;
+  --card-soft: rgba(23, 17, 34, 0.78);
+  --card-lift: rgba(33, 22, 47, 0.9);
   --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 122, 0, 0.34);
+  --line-strong: rgba(236, 72, 153, 0.34);
   --text: #F7F7F7;
-  --muted: #A3A3A3;
-  --muted-2: #737373;
-  --orange: #FF7A00;
-  --red: #FF4D4D;
+  --muted: #B8AFC8;
+  --muted-2: #7F738F;
+  --orange: #F97316;
+  --red: #EF4444;
   --purple: #8B5CF6;
+  --deep-purple: #6D28D9;
+  --pink: #EC4899;
+  --dark-pink: #BE185D;
   --shadow: 0 22px 70px rgba(0, 0, 0, 0.48);
-  --glow: 0 0 34px rgba(255, 122, 0, 0.28);
+  --glow: 0 0 34px rgba(236, 72, 153, 0.28);
   --radius: 24px;
 }
 
 .stApp {
   background:
-    radial-gradient(circle at 10% -10%, rgba(255, 122, 0, 0.18), transparent 30rem),
-    radial-gradient(circle at 90% 8%, rgba(139, 92, 246, 0.15), transparent 28rem),
-    radial-gradient(circle at 75% 95%, rgba(255, 77, 77, 0.1), transparent 26rem),
+    radial-gradient(circle at 10% -10%, rgba(236, 72, 153, 0.20), transparent 30rem),
+    radial-gradient(circle at 90% 8%, rgba(139, 92, 246, 0.20), transparent 28rem),
+    radial-gradient(circle at 75% 95%, rgba(239, 68, 68, 0.12), transparent 26rem),
     var(--bg);
   color: var(--text);
 }
@@ -213,21 +216,21 @@ footer {
 }
 
 .auth-card input:focus {
-  border-color: var(--orange) !important;
-  box-shadow: 0 0 0 4px rgba(255, 122, 0, 0.16) !important;
+  border-color: var(--pink) !important;
+  box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.16) !important;
 }
 
 .auth-card [data-testid="stFormSubmitButton"] button {
   min-height: 54px !important;
   margin-top: 0.5rem;
   border-radius: 18px !important;
-  background: linear-gradient(135deg, var(--orange), var(--red)) !important;
+  background: linear-gradient(135deg, var(--purple), var(--pink)) !important;
   color: #111 !important;
   box-shadow: var(--glow) !important;
 }
 
 .auth-card [data-baseweb="tab-panel"]:nth-of-type(2) [data-testid="stFormSubmitButton"] button {
-  background: linear-gradient(135deg, var(--purple), var(--red), var(--orange)) !important;
+  background: linear-gradient(135deg, var(--pink), var(--red), var(--orange)) !important;
   box-shadow: 0 0 34px rgba(139, 92, 246, 0.28) !important;
 }
 
@@ -285,8 +288,8 @@ button[kind="secondaryFormSubmit"]:hover {
 
 [data-testid="stSidebar"] {
   background:
-    linear-gradient(180deg, rgba(255, 122, 0, 0.06), transparent 18rem),
-    linear-gradient(180deg, #101010, #080808);
+    linear-gradient(180deg, rgba(139, 92, 246, 0.11), transparent 18rem),
+    linear-gradient(180deg, #100B18, #08060D);
   border-right: 1px solid var(--line);
   min-width: 330px !important;
 }
@@ -315,7 +318,7 @@ button[kind="secondaryFormSubmit"]:hover {
 .sidebar-card {
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: linear-gradient(145deg, rgba(24, 24, 24, 0.98), rgba(15, 15, 15, 0.92));
+  background: linear-gradient(145deg, rgba(33, 22, 47, 0.98), rgba(15, 11, 24, 0.92));
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
 }
 
@@ -331,7 +334,7 @@ button[kind="secondaryFormSubmit"]:hover {
   position: absolute;
   inset: auto 1rem 0.75rem 1rem;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 122, 0, 0.9), rgba(139, 92, 246, 0.8), transparent);
+  background: linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.9), rgba(139, 92, 246, 0.8), transparent);
 }
 
 .sidebar-brand__kicker,
@@ -378,7 +381,7 @@ button[kind="secondaryFormSubmit"]:hover {
   place-items: center;
   color: #111;
   font-weight: 950;
-  background: linear-gradient(135deg, var(--orange), var(--red));
+  background: linear-gradient(135deg, var(--purple), var(--pink));
   box-shadow: var(--glow);
 }
 
@@ -442,7 +445,7 @@ button[kind="secondaryFormSubmit"]:hover {
   gap: 1.25rem;
   background:
     linear-gradient(135deg, rgba(255, 122, 0, 0.12), transparent 42%),
-    linear-gradient(145deg, rgba(26, 26, 26, 0.96), rgba(10, 10, 10, 0.96));
+    linear-gradient(145deg, rgba(23, 17, 34, 0.96), rgba(8, 6, 13, 0.96));
 }
 
 .hero-panel {
@@ -464,11 +467,11 @@ button[kind="secondaryFormSubmit"]:hover {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid rgba(255, 122, 0, 0.38);
+  border: 1px solid rgba(236, 72, 153, 0.38);
   background:
-    linear-gradient(135deg, rgba(255, 122, 0, 0.2), rgba(139, 92, 246, 0.15)),
-    #101010;
-  box-shadow: 0 0 54px rgba(255, 122, 0, 0.16);
+    linear-gradient(135deg, rgba(236, 72, 153, 0.22), rgba(139, 92, 246, 0.18)),
+    #120D1B;
+  box-shadow: 0 0 54px rgba(236, 72, 153, 0.16);
 }
 
 .console-orbit span,
@@ -498,7 +501,7 @@ button[kind="secondaryFormSubmit"]:hover {
 }
 
 .console-row strong {
-  color: var(--orange);
+  color: var(--pink);
   font-size: 0.95rem;
 }
 
@@ -509,7 +512,7 @@ button[kind="secondaryFormSubmit"]:hover {
   padding: 0.55rem 0.85rem;
   border-radius: 999px;
   color: #111;
-  background: linear-gradient(135deg, var(--orange), var(--red));
+  background: linear-gradient(135deg, var(--purple), var(--pink));
   box-shadow: var(--glow);
   margin-bottom: 1.25rem;
 }
@@ -570,6 +573,64 @@ button[kind="secondaryFormSubmit"]:hover {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.exercise-preview,
+.camera-tips,
+.technique-card {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(23, 17, 34, 0.94), rgba(15, 11, 24, 0.82));
+  box-shadow: var(--shadow);
+  padding: 1.15rem;
+  margin: 1rem 0;
+}
+
+.exercise-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) repeat(3, minmax(150px, 0.55fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.exercise-preview h2,
+.technique-card h3 {
+  margin: 0.25rem 0 0.4rem;
+}
+
+.exercise-preview p,
+.camera-tips li,
+.technique-card p,
+.technique-card li {
+  color: var(--muted);
+}
+
+.preview-stat {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0.9rem;
+}
+
+.preview-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.preview-stat strong {
+  display: block;
+  color: var(--text);
+  margin-top: 0.45rem;
+  line-height: 1.15;
+}
+
+.camera-tips ul,
+.technique-card ul {
+  margin-bottom: 0;
+}
+
 .feature-grid,
 .active-grid {
   display: grid;
@@ -609,7 +670,7 @@ button[kind="secondaryFormSubmit"]:hover {
   color: #111;
   font-size: 0.86rem;
   font-weight: 950;
-  background: linear-gradient(135deg, var(--orange), var(--red));
+  background: linear-gradient(135deg, var(--purple), var(--pink));
   box-shadow: var(--glow);
   margin-bottom: 0.95rem;
 }
@@ -651,8 +712,25 @@ button[kind="secondaryFormSubmit"]:hover {
   border-radius: 999px;
   color: #111;
   font-weight: 950;
-  background: linear-gradient(135deg, var(--orange), var(--red));
+  background: linear-gradient(135deg, var(--pink), var(--red));
   box-shadow: var(--glow);
+}
+
+.status-stack {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.camera-pill {
+  display: inline-flex;
+  padding: 0.78rem 1rem;
+  border-radius: 999px;
+  color: #FDF2F8;
+  font-weight: 900;
+  border: 1px solid rgba(236, 72, 153, 0.32);
+  background: rgba(236, 72, 153, 0.12);
 }
 
 .active-grid {
@@ -697,7 +775,7 @@ button[kind="secondaryFormSubmit"]:hover {
   border: 1px solid transparent;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(135deg, var(--purple), rgba(255, 122, 0, 0.85), rgba(255, 77, 77, 0.7)) border-box;
+    linear-gradient(135deg, var(--purple), rgba(236, 72, 153, 0.85), rgba(239, 68, 68, 0.7)) border-box;
   box-shadow: 0 22px 70px rgba(139, 92, 246, 0.15), var(--shadow);
 }
 
@@ -966,7 +1044,8 @@ button[kind="secondaryFormSubmit"]:hover {
   .feature-grid,
   .active-grid,
   .reward-grid,
-  .badge-grid {
+  .badge-grid,
+  .exercise-preview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -983,7 +1062,8 @@ button[kind="secondaryFormSubmit"]:hover {
   .tutorial-columns,
   .reward-grid,
   .reward-split,
-  .badge-grid {
+  .badge-grid,
+  .exercise-preview {
     grid-template-columns: 1fr;
   }
 
@@ -1071,8 +1151,8 @@ textarea {
 [data-testid="stNumberInput"] input:focus,
 [data-testid="stTextInput"] input:focus,
 textarea:focus {
-  border-color: var(--orange) !important;
-  box-shadow: 0 0 0 4px rgba(255, 122, 0, 0.12) !important;
+  border-color: var(--pink) !important;
+  box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.14) !important;
 }
 
 /* Buttons */

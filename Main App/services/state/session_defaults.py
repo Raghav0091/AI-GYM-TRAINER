@@ -28,6 +28,13 @@ def initial_session_defaults():
         "gamification_processed": False,
         "workout_started_at": 0.0,
         "show_pose_overlay": False,
+        "debug_mode": False,
+        "camera_status": "Camera loading",
+        "landmark_confidence": 0.0,
+        "camera_guidance": "Allow camera permission in your browser. Make sure your full body is visible.",
+        "processing_status": "waiting",
+        "detector_stage": "setup",
+        "frame_error": "",
 
         # Workout plan (set before starting)
         "workout_started": False,

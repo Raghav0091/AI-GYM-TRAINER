@@ -1,4 +1,5 @@
 from core.base_exercise import BaseExercise
+from services.vision.pose_utils import angle_from_indices, choose_best_side, get_landmark_visibility, smooth_value
 
 
 class PushUpDetector(BaseExercise):
@@ -26,33 +27,14 @@ class PushUpDetector(BaseExercise):
         self.stage = None
 
     def process(self, landmarks) -> dict:
-        left_vis = landmarks[self.LEFT_ELBOW].visibility
-        right_vis = landmarks[self.RIGHT_ELBOW].visibility
-
-        if left_vis >= right_vis:
-            shoulder_idx = self.LEFT_SHOULDER
-            elbow_idx = self.LEFT_ELBOW
-            wrist_idx = self.LEFT_WRIST
-            hip_idx = self.LEFT_HIP
-            ankle_idx = self.LEFT_ANKLE
-        else:
-            shoulder_idx = self.RIGHT_SHOULDER
-            elbow_idx = self.RIGHT_ELBOW
-            wrist_idx = self.RIGHT_WRIST
-            hip_idx = self.RIGHT_HIP
-            ankle_idx = self.RIGHT_ANKLE
-
-        elbow_angle = self.calculate_angle(
-            self.get_point(landmarks, shoulder_idx),
-            self.get_point(landmarks, elbow_idx),
-            self.get_point(landmarks, wrist_idx),
+        _, side_points, visibility = choose_best_side(
+            landmarks,
+            [self.LEFT_SHOULDER, self.LEFT_ELBOW, self.LEFT_WRIST, self.LEFT_HIP, self.LEFT_ANKLE],
+            [self.RIGHT_SHOULDER, self.RIGHT_ELBOW, self.RIGHT_WRIST, self.RIGHT_HIP, self.RIGHT_ANKLE],
         )
-
-        body_angle = self.calculate_angle(
-            self.get_point(landmarks, shoulder_idx),
-            self.get_point(landmarks, hip_idx),
-            self.get_point(landmarks, ankle_idx),
-        )
+        shoulder_idx, elbow_idx, wrist_idx, hip_idx, ankle_idx = side_points
+        elbow_angle = smooth_value("pushup_elbow_angle", angle_from_indices(landmarks, shoulder_idx, elbow_idx, wrist_idx))
+        body_angle = smooth_value("pushup_body_angle", angle_from_indices(landmarks, shoulder_idx, hip_idx, ankle_idx))
 
         shoulder_y = landmarks[shoulder_idx].y
         ankle_y = landmarks[ankle_idx].y
@@ -61,7 +43,7 @@ class PushUpDetector(BaseExercise):
         expected_hip_y = (shoulder_y + ankle_y) / 2
         hip_deviation = hip_y - expected_hip_y
 
-        key_landmarks_visible = landmarks[shoulder_idx].visibility > self.MIN_VISIBILITY and landmarks[elbow_idx].visibility > self.MIN_VISIBILITY and landmarks[wrist_idx].visibility > self.MIN_VISIBILITY and landmarks[hip_idx].visibility > self.MIN_VISIBILITY
+        key_landmarks_visible = get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx, hip_idx, ankle_idx]) > self.MIN_VISIBILITY
         
         if key_landmarks_visible:
             if elbow_angle < self.DOWN_THRESHOLD:
@@ -90,5 +72,9 @@ class PushUpDetector(BaseExercise):
             "elbow_angle": int(elbow_angle),
             "body_alignment": body_alignment,
             "hip_status": hip_status,
+            "stage": self.stage or "setup",
+            "landmark_confidence": round(visibility, 2),
+            "camera_guidance": "Side view good" if key_landmarks_visible else "Show shoulders, wrists, hips, and ankles",
+            "processing_status": "tracking" if key_landmarks_visible else "low visibility",
         }
     

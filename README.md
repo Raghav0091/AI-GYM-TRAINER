@@ -141,6 +141,29 @@ The local leaderboard ranks users on the same device by XP, reps, streaks, worko
 - gTTS fails: check internet access. The app continues without voice.
 - Camera is blank: check browser permission and close other webcam apps.
 
+## Camera Positioning
+
+- Keep your full body visible in the frame.
+- Stand about 2-3 meters away from the camera.
+- Use bright, even lighting.
+- Avoid very baggy clothing when landmarks are unstable.
+- Use side view for squats, push-ups, lunges, planks, sit-ups, and mountain climbers.
+- Use front view for shoulder press, curls, jumping jacks, and high knees.
+- Turn on `Advanced debug mode` and `Show pose guide lines` only when tuning camera setup.
+
+## Exercise Detection Limitations
+
+The current system uses MediaPipe pose landmarks plus rule-based stage machines. It is not yet a custom trained rep-counting model. Very fast reps, poor lighting, partial body visibility, loose clothing, or a low-FPS webcam can still cause missed reps or false reps.
+
+Recent improvements include:
+
+- landmark visibility checks
+- left/right side fallback
+- rolling angle smoothing
+- safer frame processing
+- stage and confidence debug metrics
+- more tolerant jumping-jack thresholds
+
 ## Git Safety
 
 Ignored files include:
@@ -157,14 +180,15 @@ Ignored files include:
 - `.streamlit/secrets.toml`
 - `.vscode/`
 
-## ML Roadmap
+## Future ML Roadmap
 
-- Stage 1: Rule-based MediaPipe detectors
-- Stage 2: Better thresholds and smoothing
-- Stage 3: Collect exercise data
-- Stage 4: Train exercise classifier
-- Stage 5: Train form-quality classifier
-- Stage 6: Personalized calibration
+1. Current system: rule-based MediaPipe landmark detection.
+2. Improve rules with smoothing, visibility checks, side fallback, and stage machines.
+3. Collect labeled workout videos and per-frame landmark sequences.
+4. Train a time-series model such as LSTM, GRU, TCN, or Transformer.
+5. Train separate models for exercise recognition, rep stage classification, form issue classification, and form score prediction.
+6. Add personalized calibration per user.
+7. Evaluate using precision, recall, F1-score, missed-rep rate, and false-rep rate.
 
 ## Screenshots
 

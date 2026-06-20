@@ -1,4 +1,5 @@
 from core.base_exercise import BaseExercise
+from services.vision.pose_utils import angle_from_indices, choose_best_side, get_landmark_visibility, smooth_value
 
 
 class ShoulderPressDetector(BaseExercise):
@@ -25,29 +26,15 @@ class ShoulderPressDetector(BaseExercise):
         self.stage = None
 
     def process(self, landmarks) -> dict:
-        left_vis = landmarks[self.LEFT_ELBOW].visibility
-        right_vis = landmarks[self.RIGHT_ELBOW].visibility
-
-        if left_vis >= right_vis:
-            shoulder_idx = self.LEFT_SHOULDER
-            elbow_idx = self.LEFT_ELBOW
-            wrist_idx = self.LEFT_WRIST
-            hip_idx = self.LEFT_HIP
-            knee_idx = self.LEFT_KNEE
-        else:
-            shoulder_idx = self.RIGHT_SHOULDER
-            elbow_idx = self.RIGHT_ELBOW
-            wrist_idx = self.RIGHT_WRIST
-            hip_idx = self.RIGHT_HIP
-            knee_idx = self.RIGHT_KNEE
-
-        elbow_angle = self.calculate_angle(
-            self.get_point(landmarks, shoulder_idx),
-            self.get_point(landmarks, elbow_idx),
-            self.get_point(landmarks, wrist_idx),
+        _, side_points, visibility = choose_best_side(
+            landmarks,
+            [self.LEFT_SHOULDER, self.LEFT_ELBOW, self.LEFT_WRIST, self.LEFT_HIP, self.LEFT_KNEE],
+            [self.RIGHT_SHOULDER, self.RIGHT_ELBOW, self.RIGHT_WRIST, self.RIGHT_HIP, self.RIGHT_KNEE],
         )
+        shoulder_idx, elbow_idx, wrist_idx, hip_idx, knee_idx = side_points
+        elbow_angle = smooth_value("press_elbow_angle", angle_from_indices(landmarks, shoulder_idx, elbow_idx, wrist_idx))
 
-        key_landmarks_visible = landmarks[shoulder_idx].visibility > self.MIN_VISIBILITY and landmarks[elbow_idx].visibility > self.MIN_VISIBILITY and landmarks[wrist_idx].visibility > self.MIN_VISIBILITY
+        key_landmarks_visible = get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx]) > self.MIN_VISIBILITY
 
         if key_landmarks_visible:
             if elbow_angle > self.UP_THRESHOLD:
@@ -66,11 +53,7 @@ class ShoulderPressDetector(BaseExercise):
         else:
             extension_status = "START POSITION"
 
-        back_angle = self.calculate_angle(
-            self.get_point(landmarks, shoulder_idx),
-            self.get_point(landmarks, hip_idx),
-            self.get_point(landmarks, knee_idx),
-        )
+        back_angle = smooth_value("press_back_angle", angle_from_indices(landmarks, shoulder_idx, hip_idx, knee_idx))
 
         if back_angle >= 160:
             back_arch_status = "Neutral"
@@ -84,5 +67,9 @@ class ShoulderPressDetector(BaseExercise):
             "elbow_angle": int(elbow_angle),
             "extension_status": extension_status,
             "back_arch_status": back_arch_status,
+            "stage": self.stage or "setup",
+            "landmark_confidence": round(visibility, 2),
+            "camera_guidance": "Front view good" if key_landmarks_visible else "Keep shoulders, elbows, and wrists visible",
+            "processing_status": "tracking" if key_landmarks_visible else "low visibility",
         }
     
