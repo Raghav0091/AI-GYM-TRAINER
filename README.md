@@ -18,6 +18,8 @@ Version 3 adds a game-style progression system so workouts feel more rewarding: 
 - XP, levels, streaks, achievements, personal records, and daily challenges
 - Local leaderboard foundation for future multiplayer scoring
 - AI Fitness Arena local multiplayer rooms with room codes and live leaderboard
+- FastAPI backend foundation for production auth, workouts, rooms, and WebSocket score updates
+- PostgreSQL and Redis architecture prepared through Docker Compose
 
 ## Exercises
 
@@ -50,6 +52,11 @@ Each exercise has detector metrics, sidebar feedback, form scoring, and tutorial
 - Groq
 - gTTS
 - python-dotenv
+- FastAPI
+- PostgreSQL
+- Redis
+- Docker Compose
+- WebSockets
 
 ## Setup
 
@@ -88,6 +95,77 @@ Then open the local URL shown in the terminal, usually:
 ```text
 http://localhost:8501
 ```
+
+## Production Backend Foundation
+
+Version 5.0 adds a new FastAPI backend beside the existing Streamlit app. The current Streamlit app still works locally with SQLite, but the backend prepares the project for real deployment.
+
+Backend structure:
+
+- `backend/app/main.py` FastAPI entrypoint
+- `backend/app/core/` config, database, security
+- `backend/app/models/` SQLAlchemy PostgreSQL models
+- `backend/app/schemas/` Pydantic request/response schemas
+- `backend/app/services/` auth, workout, room, leaderboard, Redis cache services
+- `backend/app/routers/` REST and WebSocket routes
+
+Backend endpoints:
+
+- `GET /health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /workouts`
+- `GET /workouts/{user_id}`
+- `GET /workouts/{user_id}/summary`
+- `POST /rooms/create`
+- `POST /rooms/join/{room_code}`
+- `POST /rooms/{room_code}/start`
+- `POST /rooms/{room_code}/end`
+- `GET /rooms/{room_code}`
+- `GET /rooms/{room_code}/leaderboard`
+- `WS /ws/rooms/{room_code}`
+
+Install and run the backend locally with `uv`:
+
+```powershell
+cd "C:\Apna_colleage Projects\ai-gym-coach-main"
+uv pip install -r backend\requirements.txt --python .\AI_gym\Scripts\python.exe --system-certs
+cd "C:\Apna_colleage Projects\ai-gym-coach-main\backend"
+..\AI_gym\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Health check:
+
+```text
+http://localhost:8000/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "service": "ai-fitness-arena-backend"
+}
+```
+
+## Docker Compose
+
+Copy `.env.example` to `.env` and change secrets before deploying.
+
+```powershell
+cd "C:\Apna_colleage Projects\ai-gym-coach-main"
+docker compose up --build
+```
+
+Docker Compose starts:
+
+- `backend` FastAPI service on port `8000`
+- `postgres` PostgreSQL database on port `5432`
+- `redis` cache on port `6379`
+
+Do not commit a real `.env` file.
 
 ## Login and Register
 
@@ -159,6 +237,40 @@ Future real-time upgrade plan:
 
 - If WebRTC fails, the app shows a camera/WebRTC error message in the UI.
 
+### Camera HTTPS Requirement
+
+Browser camera APIs only work in secure contexts. Camera access works on:
+
+- `http://localhost:8501`
+- `https://deployed-domain.com`
+
+Camera access may fail on:
+
+- `http://192.168.x.x:8501`
+- insecure remote URLs
+
+If you see this error:
+
+```text
+navigator.mediaDevices is undefined
+The current document is not loaded securely
+```
+
+that means the browser blocked camera access because the page is not loaded from `localhost` or HTTPS. For phone and multi-device testing, deploy with HTTPS using Streamlit Cloud, Caddy, NGINX, Cloudflare Tunnel, or another secure hosting option. Do not expect phone camera access to work over a plain HTTP LAN IP.
+
+## Production Architecture Docs
+
+See:
+
+- `docs/architecture_explained.md`
+- `docs/future_architecture.md`
+
+These explain frontend/backend/API/database/cache/WebSocket concepts, why SQLite is not enough for production multiplayer, and how a future NGINX or Caddy gateway can route:
+
+- `/` to Streamlit
+- `/api/*` to FastAPI
+- `/ws/*` to the WebSocket room service
+
 ## Common Issues
 
 - MediaPipe install fails: use Python 3.11, not Python 3.13.
@@ -214,6 +326,8 @@ Ignored files include:
 - `*.db`
 - `.streamlit/secrets.toml`
 - `.vscode/`
+- `postgres_data/`
+- `redis_data/`
 
 ## Future ML Roadmap
 

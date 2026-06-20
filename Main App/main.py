@@ -9,6 +9,7 @@ from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS, EXERCISE_TUTORIALS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
 from services.persistence.exercise_repository import init_db
+from services.api.backend_client import backend_base_url, backend_health_check
 from services.tracking.metrics import sync_metrics_update
 from services.ui.camera_panel import (
     render_camera_debug_panel,
@@ -100,6 +101,11 @@ def get_groq_api_key():
         pass
 
     return api_key
+
+
+@st.cache_data(ttl=15)
+def get_cached_backend_status():
+    return backend_health_check(timeout=0.5)
 
 
 def render_section_header(title, subtitle=""):
@@ -1028,6 +1034,19 @@ def main():
         st.divider()
 
         progress = get_user_progress(st.session_state.get("user_id"))
+        backend_status = get_cached_backend_status()
+        backend_label = "Online" if backend_status.get("ok") else "Offline"
+        backend_class = "backend-status--online" if backend_status.get("ok") else "backend-status--offline"
+        st.markdown(
+            f"""
+            <div class="sidebar-card sidebar-card--section backend-status {backend_class}">
+                <div class="sidebar-card__label">Production Backend</div>
+                <div class="sidebar-card__value">{safe_text(backend_label)}</div>
+                <div class="sidebar-card__label">{safe_text(backend_base_url())}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.markdown(
             f"""
             <div class="sidebar-card sidebar-card--section">
