@@ -322,17 +322,21 @@ def render_gamification_dashboard(user_id):
 
     unlocked_count = sum(1 for item in achievements if item.get("unlocked_at"))
     st.markdown("##### Achievements")
-    badge_html = "".join(
-        f"""
-        <div class="badge-card {'badge-card--locked' if not item.get('unlocked_at') else ''}">
-            <div class="badge-icon">{safe_text(item['icon'])}</div>
-            <h4>{safe_text(item['name'])}</h4>
-            <p>{safe_text(item['description'])}</p>
-            <span>{'Unlocked' if item.get('unlocked_at') else '+' + str(item['xp_reward']) + ' XP'}</span>
-        </div>
-        """
-        for item in achievements
-    )
+    badge_cards = []
+
+    for item in achievements:
+        locked_class = " badge-card--locked" if not item.get("unlocked_at") else ""
+        status_text = "Unlocked" if item.get("unlocked_at") else f"+{item['xp_reward']} XP"
+        badge_cards.append(
+            f"<div class='badge-card{locked_class}'>"
+            f"<div class='badge-icon'>{safe_text(item['icon'])}</div>"
+            f"<h4>{safe_text(item['name'])}</h4>"
+            f"<p>{safe_text(item['description'])}</p>"
+            f"<span>{safe_text(status_text)}</span>"
+            "</div>"
+        )
+
+    badge_html = "".join(badge_cards)
     st.markdown(
         f"<p class='section-subtitle'>{unlocked_count} / {len(achievements)} badges unlocked</p><div class='badge-grid'>{badge_html}</div>",
         unsafe_allow_html=True,
