@@ -108,6 +108,7 @@ Streamlit Cloud settings:
 - Main file path: `streamlit_app.py`
 - Python version: `3.11` from Advanced settings
 - Requirements file: root `requirements.txt`
+- Linux packages file: root `packages.txt`
 
 Secrets:
 
@@ -118,6 +119,8 @@ GROQ_API_KEY = "your_key_here"
 Do not set the main file path to `backend/main.py`.
 Do not set the main file path to `Main App/main.py`.
 Use `streamlit_app.py` so Streamlit Cloud does not need to handle the `Main App` folder space directly.
+
+If Streamlit Cloud shows a `cv2` import error, reboot/redeploy the app after this root `packages.txt` is present. OpenCV and MediaPipe need Linux system packages such as `libgl1` and `libglib2.0-0` during deployment.
 
 The backend dependency file is now `backend/backend-requirements.txt`. It is for the future FastAPI Docker service, not for Streamlit Cloud.
 
