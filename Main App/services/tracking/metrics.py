@@ -43,6 +43,15 @@ def sync_metrics_update(context):
         st.session_state.get("camera_fps_estimate", 0.0),
     )
 
+    active_exercise = latest_metrics.get("exercise") or exercise
+    detected_exercise = latest_metrics.get("detected_exercise", "Unknown")
+    st.session_state.active_detector_exercise = active_exercise
+    st.session_state.detected_exercise = detected_exercise
+    st.session_state.exercise_confidence = float(latest_metrics.get("exercise_confidence", 0.0) or 0.0)
+    st.session_state.pose_visibility_score = float(latest_metrics.get("pose_visibility_score", 0.0) or 0.0)
+    st.session_state.detector_name = latest_metrics.get("detector_name", "Unavailable")
+    st.session_state.auto_detect_exercise = bool(latest_metrics.get("auto_detect_enabled", st.session_state.get("auto_detect_exercise", False)))
+
     st.session_state.camera_status = latest_metrics.get("camera_status", "Camera active")
     st.session_state.detector_stage = latest_metrics.get("stage", st.session_state.get("detector_stage", "setup"))
     st.session_state.landmark_confidence = latest_metrics.get("landmark_confidence", st.session_state.get("landmark_confidence", 0.0))
@@ -59,13 +68,10 @@ def sync_metrics_update(context):
     if reps is None:
         reps = 0
         
-    st.session_state.reps = 0 if exercise == "Plank" else reps
+    st.session_state.reps = 0 if active_exercise == "Plank" else reps
     st.session_state.hold_seconds = hold_seconds
 
-    fields = METRICS_FIELDS.get(exercise)
-
-    if not fields:
-        return 
+    fields = METRICS_FIELDS.get(active_exercise, {})
 
     for key, default in fields.items():
         st.session_state[key] = latest_metrics.get(key, default)
@@ -80,7 +86,7 @@ def sync_metrics_update(context):
     )
 
     if should_update_form_score:
-        live_form_score = update_form_score_state(exercise, latest_metrics)
+        live_form_score = update_form_score_state(active_exercise, latest_metrics)
         st.session_state.last_form_score_update = time.time()
 
     st.session_state.detector_debug = {
@@ -91,7 +97,7 @@ def sync_metrics_update(context):
     reps_per_set = st.session_state.get("reps_per_set", 0)
     target_sets = st.session_state.get("target_sets", 0)
 
-    if exercise == "Plank" and reps_per_set > 0 and target_sets > 0:
+    if active_exercise == "Plank" and reps_per_set > 0 and target_sets > 0:
         sets_completed = hold_seconds // reps_per_set
         current_set_reps = hold_seconds % reps_per_set
         workout_completed = sets_completed >= target_sets
@@ -109,9 +115,9 @@ def sync_metrics_update(context):
     st.session_state.workout_completed = workout_completed
     st.session_state.detector_debug = {
         **st.session_state.get("detector_debug", {}),
-        "valid_workout": _is_current_workout_valid(exercise),
+        "valid_workout": _is_current_workout_valid(active_exercise),
     }
-    _sync_room_score_if_needed(exercise, latest_metrics)
+    _sync_room_score_if_needed(active_exercise, latest_metrics)
 
     last_saved_sets = st.session_state.get("last_saved_sets_completed", 0)
 
@@ -124,8 +130,8 @@ def sync_metrics_update(context):
 
         add_exercise(
             user_id,
-            exercise,
-            0 if exercise == "Plank" else newly_completed * reps_per_set,
+            active_exercise,
+            0 if active_exercise == "Plank" else newly_completed * reps_per_set,
             newly_completed,
             time_taken,
             st.session_state.get("average_form_score", 0),
@@ -135,7 +141,7 @@ def sync_metrics_update(context):
         if st.session_state.get("voice_pipeline"):
             result = st.session_state.voice_pipeline.process_event(
                 event="set_completed",
-                exercise=exercise,
+                exercise=active_exercise,
                 metrics=latest_metrics,
             )
 
@@ -160,7 +166,7 @@ def sync_metrics_update(context):
         if st.session_state.get("voice_pipeline"):
             result = st.session_state.voice_pipeline.process_event(
                 event="workout_completed",
-                exercise=exercise,
+                exercise=active_exercise,
                 metrics=latest_metrics,
             )
 
@@ -177,7 +183,7 @@ def sync_metrics_update(context):
     if not pose_detected and st.session_state.get("voice_pipeline"):
         result = st.session_state.voice_pipeline.process_event(
             event="no_pose_detected",
-            exercise=exercise,
+            exercise=active_exercise,
             metrics={"issue": "No pose detected! Please step into the camera frame."},
         )
     
@@ -188,7 +194,7 @@ def sync_metrics_update(context):
     if st.session_state.get("voice_pipeline"):
         result = st.session_state.voice_pipeline.process_event(
             event="ongoing_form_check",
-            exercise=exercise,
+            exercise=active_exercise,
             metrics=latest_metrics,
         )
         

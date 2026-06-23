@@ -23,6 +23,7 @@ data.db
 *.db-shm
 postgres_data/
 redis_data/
+Main App/data/pose_samples/
 
 # Logs
 *.log

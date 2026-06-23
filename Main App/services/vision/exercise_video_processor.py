@@ -1,4 +1,3 @@
-import os
 import cv2
 import av
 import numpy as np
@@ -11,7 +10,11 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from services.config.workout_config import POSE_CONNECTIONS
 from services.vision.detector_base import standardize_detector_metrics
-from services.vision.detector_registry import build_detectors
+from services.vision.detector_registry import build_detectors, detector_available
+from services.vision.exercise_classifier import HeuristicExerciseClassifier
+from services.vision.pose_data_collector import PoseDataCollector
+from services.vision.pose_normalizer import get_pose_features
+from services.vision.prediction_smoother import PredictionSmoother
 
 
 class VideoProcessorClass(VideoProcessorBase):
@@ -37,9 +40,15 @@ class VideoProcessorClass(VideoProcessorBase):
         self._landmarker = vision.PoseLandmarker.create_from_options(options)
 
         self._detectors = build_detectors()
+        self._classifier = HeuristicExerciseClassifier()
+        self._prediction_smoother = PredictionSmoother()
+        self._pose_data_collector = PoseDataCollector()
 
         self._frame_timestamps_ms = 0
         self._draw_pose_overlay = False
+        self._auto_detect_enabled = False
+        self._pose_data_collection_enabled = False
+        self._collector_context = {}
         self._last_error = ""
         self._last_frame_at = 0.0
         self._frame_count = 0
@@ -71,6 +80,27 @@ class VideoProcessorClass(VideoProcessorBase):
         with self._lock:
             return self._draw_pose_overlay
 
+    def set_auto_detect_enabled(self, enabled):
+        with self._lock:
+            changed = self._auto_detect_enabled != bool(enabled)
+            self._auto_detect_enabled = bool(enabled)
+
+        if changed:
+            self._prediction_smoother.reset()
+
+    def get_auto_detect_enabled(self):
+        with self._lock:
+            return self._auto_detect_enabled
+
+    def set_pose_data_collection(self, enabled, context=None):
+        with self._lock:
+            self._pose_data_collection_enabled = bool(enabled)
+            self._collector_context = dict(context or {})
+
+    def get_pose_data_collection(self):
+        with self._lock:
+            return self._pose_data_collection_enabled, dict(self._collector_context)
+
     def get_debug_snapshot(self):
         with self._lock:
             detector = self._detectors.get(self._exercise_type)
@@ -81,6 +111,8 @@ class VideoProcessorClass(VideoProcessorBase):
                 "last_frame_at": self._last_frame_at,
                 "frame_timestamp_ms": self._frame_timestamps_ms,
                 "fps": round(self._fps, 1),
+                "auto_detect_enabled": self._auto_detect_enabled,
+                "using_tflite": self._classifier.using_tflite,
             }
 
     def _mark_frame_processed(self):
@@ -331,11 +363,59 @@ class VideoProcessorClass(VideoProcessorBase):
 
             if result.pose_landmarks:
                 landmarks = result.pose_landmarks[0]
+                pose_features = get_pose_features(landmarks)
+                auto_detect_enabled = self.get_auto_detect_enabled()
+                selected_exercise = self.get_exercise()
+                classifier_prediction = self._classifier.predict(pose_features)
+                smoothed_prediction = self._prediction_smoother.update(classifier_prediction)
 
                 if self.get_draw_pose_overlay():
                     self._draw_skeleton(image, landmarks)
 
-                ex_type = self.get_exercise()
+                detected_exercise = smoothed_prediction.get("exercise", "Unknown")
+                exercise_confidence = float(smoothed_prediction.get("confidence", 0.0) or 0.0)
+                pose_visibility_score = float(pose_features.get("visibility_score", 0.0) or 0.0)
+                ex_type = selected_exercise
+
+                if auto_detect_enabled:
+                    if detected_exercise != "Unknown" and exercise_confidence >= 0.55 and detector_available(detected_exercise):
+                        ex_type = detected_exercise
+                    else:
+                        metrics = standardize_detector_metrics(
+                            selected_exercise,
+                            None,
+                            {
+                                "pose_detected": True,
+                                "selected_exercise": selected_exercise,
+                                "detected_exercise": "Unknown",
+                                "exercise_confidence": exercise_confidence,
+                                "auto_detect_enabled": True,
+                                "pose_visibility_score": pose_visibility_score,
+                                "detector_name": "Waiting for confident prediction",
+                                "camera_status": "Exercise not detected",
+                                "processing_status": "auto detect waiting",
+                                "camera_guidance": "Move farther back and keep your full body visible.",
+                                "issue": "Exercise not detected. Keep full body visible.",
+                                "frame_timestamp_ms": self._frame_timestamps_ms,
+                                "last_frame_at": self._last_frame_at,
+                                "fps": round(self._fps, 1),
+                                "debug": {
+                                    "classifier_scores": smoothed_prediction.get("scores", {}),
+                                    "raw_prediction": classifier_prediction,
+                                    "using_tflite": self._classifier.using_tflite,
+                                },
+                            },
+                        )
+                        self.set_latest_metrics(metrics)
+                        self._maybe_collect_pose_sample(
+                            pose_features,
+                            metrics,
+                            selected_exercise,
+                            "Unknown",
+                            exercise_confidence,
+                        )
+                        return av.VideoFrame.from_ndarray(image, format="bgr24")
+
                 detector = self._detectors.get(ex_type)
 
                 if detector:
@@ -345,12 +425,32 @@ class VideoProcessorClass(VideoProcessorBase):
                         detector.process(landmarks),
                     )
                     metrics["pose_detected"] = True
+                    metrics["selected_exercise"] = selected_exercise
                     metrics["selected_detector"] = ex_type
+                    metrics["detected_exercise"] = detected_exercise if auto_detect_enabled else ex_type
+                    metrics["exercise_confidence"] = exercise_confidence if auto_detect_enabled else 1.0
+                    metrics["confidence"] = metrics["exercise_confidence"]
+                    metrics["auto_detect_enabled"] = auto_detect_enabled
+                    metrics["pose_visibility_score"] = pose_visibility_score
+                    metrics["detector_name"] = detector.__class__.__name__
                     metrics["frame_timestamp_ms"] = self._frame_timestamps_ms
                     metrics["last_frame_at"] = self._last_frame_at
                     metrics["fps"] = round(self._fps, 1)
+                    metrics["debug"] = {
+                        **metrics.get("debug", {}),
+                        "classifier_scores": smoothed_prediction.get("scores", {}),
+                        "raw_prediction": classifier_prediction,
+                        "using_tflite": self._classifier.using_tflite,
+                    }
                     self._draw_overlays(image, metrics, ex_type)
                     self.set_latest_metrics(metrics)
+                    self._maybe_collect_pose_sample(
+                        pose_features,
+                        metrics,
+                        selected_exercise,
+                        metrics["detected_exercise"],
+                        metrics["exercise_confidence"],
+                    )
                 else:
                     self.set_latest_metrics(
                         standardize_detector_metrics(
@@ -358,9 +458,15 @@ class VideoProcessorClass(VideoProcessorBase):
                             None,
                             {
                                 "pose_detected": False,
+                                "selected_exercise": selected_exercise,
+                                "detected_exercise": detected_exercise,
+                                "exercise_confidence": exercise_confidence,
+                                "auto_detect_enabled": auto_detect_enabled,
+                                "pose_visibility_score": pose_visibility_score,
                                 "camera_status": "Detector unavailable",
                                 "processing_status": "detector unavailable",
                                 "issue": "Detector not available for this exercise yet.",
+                                "detector_name": "Unavailable",
                                 "last_frame_at": self._last_frame_at,
                                 "fps": round(self._fps, 1),
                             },
@@ -374,6 +480,12 @@ class VideoProcessorClass(VideoProcessorBase):
                         "processing_status": "no pose",
                         "camera_guidance": "Move farther back and keep your full body in frame.",
                         "selected_detector": self.get_exercise(),
+                        "selected_exercise": self.get_exercise(),
+                        "detected_exercise": "Unknown",
+                        "exercise_confidence": 0.0,
+                        "auto_detect_enabled": self.get_auto_detect_enabled(),
+                        "pose_visibility_score": 0.0,
+                        "detector_name": "Unavailable",
                         "last_frame_at": self._last_frame_at,
                         "fps": round(self._fps, 1),
                     }
@@ -388,6 +500,12 @@ class VideoProcessorClass(VideoProcessorBase):
                     "processing_status": "frame error",
                     "frame_error": str(exc),
                     "selected_detector": self.get_exercise(),
+                    "selected_exercise": self.get_exercise(),
+                    "detected_exercise": "Unknown",
+                    "exercise_confidence": 0.0,
+                    "auto_detect_enabled": self.get_auto_detect_enabled(),
+                    "pose_visibility_score": 0.0,
+                    "detector_name": "Unavailable",
                     "last_frame_at": self._last_frame_at,
                     "fps": round(self._fps, 1),
                 }
@@ -397,3 +515,24 @@ class VideoProcessorClass(VideoProcessorBase):
                 self._last_error = ""
 
         return av.VideoFrame.from_ndarray(image, format="bgr24")
+
+    def _maybe_collect_pose_sample(self, pose_features, metrics, selected_exercise, detected_exercise, confidence):
+        enabled, context = self.get_pose_data_collection()
+        if not enabled:
+            return
+
+        self._pose_data_collector.save_sample(
+            {
+                "user_id": context.get("user_id"),
+                "username": context.get("username"),
+                "selected_exercise": selected_exercise,
+                "detected_exercise": detected_exercise,
+                "confidence": confidence,
+                "feature_vector": pose_features.get("feature_vector", []),
+                "pose_visibility_score": pose_features.get("visibility_score", 0.0),
+                "reps": metrics.get("reps", 0),
+                "stage": metrics.get("stage", "setup"),
+                "form_score": metrics.get("form_score", 0),
+                "issue": metrics.get("issue"),
+            }
+        )

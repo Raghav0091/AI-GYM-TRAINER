@@ -20,6 +20,7 @@ Version 3 adds a game-style progression system so workouts feel more rewarding: 
 - AI Fitness Arena local multiplayer rooms with room codes and live leaderboard
 - FastAPI backend foundation for production auth, workouts, rooms, and WebSocket score updates
 - PostgreSQL and Redis architecture prepared through Docker Compose
+- Exercise Intelligence Engine with pose normalization, heuristic auto-detect, and prediction smoothing
 
 ## Exercises
 
@@ -223,6 +224,40 @@ Future real-time upgrade plan:
 - Build a React frontend later for smoother multiplayer UX.
 - Add fitness games such as Squat Bird and Push-up Racer.
 
+## Exercise Intelligence Engine
+
+The Exercise Intelligence Engine adds DeepFit-style pose processing on top of the existing MediaPipe detectors.
+
+Current flow:
+
+1. MediaPipe finds body landmarks from the camera frame.
+2. `pose_normalizer.py` extracts 18 important keypoints: nose, neck, shoulders, elbows, wrists, hips, knees, ankles, eyes, and ears.
+3. The keypoints are normalized around the body center and body scale, producing a 36-value feature vector.
+4. `exercise_classifier.py` uses safe geometry heuristics to estimate the exercise.
+5. `prediction_smoother.py` looks at recent predictions so the app does not flicker between exercises.
+6. The video processor runs the matching detector only when confidence is high enough.
+
+Manual mode vs Auto Detect mode:
+
+- Manual mode uses the exercise selected in the sidebar.
+- Auto Detect mode predicts the exercise from body movement and switches detector after smoothing.
+- If confidence is below `0.55`, the app shows `Unknown` and asks you to move farther back with your full body visible.
+
+Current auto-detect limitations:
+
+- It is a rule-based heuristic classifier, not a trained deep learning model yet.
+- It works best when the full body is visible.
+- Camera angle still matters. Side view is better for squats, push-ups, planks, lunges, sit-ups, crunches, and mountain climbers. Front view is better for jumping jacks, high knees, curls, and shoulder press.
+- Very fast movement or low light can reduce confidence.
+
+Future ML plan:
+
+- Collect normalized pose samples with the developer-only `Enable Pose Data Collection` toggle.
+- Store samples locally in `Main App/data/pose_samples/`, which is ignored by Git.
+- Train future models for exercise classification, rep stage classification, and form quality classification.
+- Add a future optional TFLite model at `Main App/ml_models/exercise_classifier.tflite`.
+- If the TFLite file exists later, the classifier code has a hook where the heuristic logic can be replaced.
+
 ## Camera Troubleshooting
 
 - Run the app from `Main App`, not the repository root.
@@ -281,6 +316,8 @@ These explain frontend/backend/API/database/cache/WebSocket concepts, why SQLite
 - Room code not found: make sure the host created the room on the same local database.
 - Leaderboard not updating: click Refresh Room, then make sure your camera workout is active and reps/hold time are changing.
 - SQLite multiplayer is local-only. For real remote users, move the room services to Supabase or WebSockets.
+- Auto detect says Unknown: move farther back, improve lighting, and keep your full body visible.
+- Pose visibility is low: check camera angle, avoid cropped feet/hands, and turn on pose guide lines in debug mode.
 
 ## Camera Positioning
 
