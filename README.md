@@ -120,7 +120,7 @@ Do not set the main file path to `backend/main.py`.
 Do not set the main file path to `Main App/main.py`.
 Use `streamlit_app.py` so Streamlit Cloud does not need to handle the `Main App` folder space directly.
 
-If Streamlit Cloud shows a `cv2` import error, reboot/redeploy the app after this root `packages.txt` is present. OpenCV and MediaPipe need Linux system packages such as `libgl1` and `libglib2.0-0` during deployment.
+If Streamlit Cloud shows a `cv2` import error, reboot/redeploy the app after this root `packages.txt` is present. OpenCV and MediaPipe need Linux system packages such as `libgl1` and `libglib2.0-0t64` during deployment.
 
 The backend dependency file is now `backend/backend-requirements.txt`. It is for the future FastAPI Docker service, not for Streamlit Cloud.
 
