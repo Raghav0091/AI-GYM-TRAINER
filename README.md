@@ -97,6 +97,30 @@ Then open the local URL shown in the terminal, usually:
 http://localhost:8501
 ```
 
+## Streamlit Cloud Deployment
+
+Use the root wrapper as the single public Streamlit entrypoint.
+
+Streamlit Cloud settings:
+
+- Repository: `Raghav0091/AI-GYM-TRAINER`
+- Branch: `main`
+- Main file path: `streamlit_app.py`
+- Python version: `3.11` from Advanced settings
+- Requirements file: root `requirements.txt`
+
+Secrets:
+
+```toml
+GROQ_API_KEY = "your_key_here"
+```
+
+Do not set the main file path to `backend/main.py`.
+Do not set the main file path to `Main App/main.py`.
+Use `streamlit_app.py` so Streamlit Cloud does not need to handle the `Main App` folder space directly.
+
+The backend dependency file is now `backend/backend-requirements.txt`. It is for the future FastAPI Docker service, not for Streamlit Cloud.
+
 ## Production Backend Foundation
 
 Version 5.0 adds a new FastAPI backend beside the existing Streamlit app. The current Streamlit app still works locally with SQLite, but the backend prepares the project for real deployment.
@@ -131,7 +155,7 @@ Install and run the backend locally with `uv`:
 
 ```powershell
 cd "C:\Apna_colleage Projects\ai-gym-coach-main"
-uv pip install -r backend\requirements.txt --python .\AI_gym\Scripts\python.exe --system-certs
+uv pip install -r backend\backend-requirements.txt --python .\AI_gym\Scripts\python.exe --system-certs
 cd "C:\Apna_colleage Projects\ai-gym-coach-main\backend"
 ..\AI_gym\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
