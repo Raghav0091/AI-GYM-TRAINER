@@ -62,10 +62,21 @@ class JumpingJacksDetector(BaseExercise):
 
         arm_status = "HANDS UP" if hands_overhead else "RAISE ARMS"
         foot_status = "FEET APART" if feet_apart else "FEET TOGETHER"
+        visibility = sum(landmarks[idx].visibility for idx in [self.LEFT_SHOULDER, self.RIGHT_SHOULDER, self.LEFT_WRIST, self.RIGHT_WRIST, self.LEFT_HIP, self.RIGHT_HIP, self.LEFT_ANKLE, self.RIGHT_ANKLE]) / 8
+        issue = None if key_visible else "Required body parts are not visible"
 
         return {
             "reps": self.reps,
             "arm_status": arm_status,
             "foot_status": foot_status,
             "jumping_jack_stage": self.stage,
+            "stage": self.stage,
+            "pose_detected": key_visible,
+            "pose_visibility": round(visibility, 3),
+            "camera_status": "Tracking" if key_visible else "Adjust camera",
+            "issue": issue,
+            "camera_guidance": "Front-facing full body view is best" if key_visible else "Show shoulders, wrists, hips, and ankles",
+            "processing_status": "tracking" if key_visible else "low visibility",
+            "is_valid_rep": key_visible and self.stage == "closed",
+            "debug": {"required_body_parts": ["shoulders", "wrists", "hips", "ankles"]},
         }

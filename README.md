@@ -289,6 +289,8 @@ Future ML plan:
 
 - Run the app from `Main App`, not the repository root.
 - Allow camera permission in your browser.
+- Use Chrome or Edge for best `streamlit-webrtc` compatibility.
+- On Streamlit Cloud, camera requires HTTPS.
 - Close Zoom, Teams, OBS, or any other app using the webcam.
 - If the stream does not start, click the camera panel’s Start button.
 - Try another port if Streamlit is already running:
@@ -298,6 +300,16 @@ Future ML plan:
 ```
 
 - If WebRTC fails, the app shows a camera/WebRTC error message in the UI.
+
+### Live Camera Troubleshooting (v5.1)
+
+- Keep full body visible whenever possible.
+- Place camera near waist/chest height.
+- Use brighter lighting if pose visibility is low.
+- Front view is better for squats, curls, shoulder press, and jumping jacks.
+- Side view is better for push-ups, planks, and mountain climbers.
+- Auto Detect mode is experimental.
+- Manual mode is recommended for most reliable rep counting.
 
 ### Camera HTTPS Requirement
 
@@ -358,7 +370,9 @@ These explain frontend/backend/API/database/cache/WebSocket concepts, why SQLite
 
 ## Exercise Detection Limitations
 
-The current system uses MediaPipe pose landmarks plus rule-based stage machines. It is not yet a custom trained rep-counting model. Very fast reps, poor lighting, partial body visibility, loose clothing, or a low-FPS webcam can still cause missed reps or false reps.
+MediaPipe Pose is the human pose landmark model used for live body tracking.
+
+Auto-detect is currently heuristic/rule-based (not a trained exercise classifier model yet). The current system uses MediaPipe pose landmarks plus rule-based stage machines. Very fast reps, poor lighting, partial body visibility, loose clothing, or a low-FPS webcam can still cause missed reps or false reps.
 
 Recent improvements include:
 
@@ -394,6 +408,8 @@ Ignored files include:
 - `redis_data/`
 
 ## Future ML Roadmap
+
+Future plan: train a real exercise classifier using collected pose samples.
 
 1. Current system: rule-based MediaPipe landmark detection.
 2. Improve rules with smoothing, visibility checks, side fallback, and stage machines.

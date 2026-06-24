@@ -67,6 +67,7 @@ class PushUpDetector(BaseExercise):
         else:
             hip_status = "PIKED UP"
 
+        issue = None if key_landmarks_visible else "Required body parts are not visible"
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),
@@ -76,5 +77,11 @@ class PushUpDetector(BaseExercise):
             "landmark_confidence": round(visibility, 2),
             "camera_guidance": "Side view good" if key_landmarks_visible else "Show shoulders, wrists, hips, and ankles",
             "processing_status": "tracking" if key_landmarks_visible else "low visibility",
+            "pose_detected": key_landmarks_visible,
+            "pose_visibility": round(get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx, hip_idx, ankle_idx]), 3),
+            "camera_status": "Tracking" if key_landmarks_visible else "Adjust camera",
+            "issue": issue,
+            "is_valid_rep": key_landmarks_visible and self.stage == "up",
+            "debug": {"required_body_parts": ["shoulders", "elbows", "wrists", "hips", "ankles"]},
         }
     

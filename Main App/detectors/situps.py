@@ -44,10 +44,21 @@ class SitUpsDetector(BaseExercise):
 
         range_status = "FULL SIT-UP" if torso_angle < self.UP_THRESHOLD else "LOW RANGE"
         control_status = "CONTROLLED" if key_visible else "CHECK POSITION"
+        visibility = sum(landmarks[idx].visibility for idx in [self.LEFT_SHOULDER, self.RIGHT_SHOULDER, self.LEFT_HIP, self.RIGHT_HIP, self.LEFT_KNEE, self.RIGHT_KNEE]) / 6
+        issue = None if key_visible else "Required body parts are not visible"
 
         return {
             "reps": self.reps,
             "torso_angle": int(torso_angle),
             "range_status": range_status,
             "control_status": control_status,
+            "stage": self.stage or "setup",
+            "pose_detected": key_visible,
+            "pose_visibility": round(visibility, 3),
+            "camera_status": "Tracking" if key_visible else "Adjust camera",
+            "issue": issue,
+            "camera_guidance": "Side view helps sit-up tracking" if key_visible else "Show shoulders, hips, and knees",
+            "processing_status": "tracking" if key_visible else "low visibility",
+            "is_valid_rep": key_visible and self.stage == "down",
+            "debug": {"required_body_parts": ["shoulders", "hips", "knees"]},
         }

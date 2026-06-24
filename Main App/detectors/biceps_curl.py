@@ -1,6 +1,6 @@
 import math
 from core.base_exercise import BaseExercise
-from services.vision.pose_utils import angle_from_indices, choose_best_side, smooth_value
+from services.vision.pose_utils import angle_from_indices, choose_best_side, get_landmark_visibility, smooth_value
 
 
 class BicepsCurlDetector(BaseExercise):
@@ -72,6 +72,9 @@ class BicepsCurlDetector(BaseExercise):
         else:
             swing_status = "SWINGING"
 
+        pose_visibility = get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx, self.LEFT_HIP, self.RIGHT_HIP])
+        issue = None if key_landmarks_visible else "Required body parts are not visible"
+
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),
@@ -81,6 +84,12 @@ class BicepsCurlDetector(BaseExercise):
             "landmark_confidence": round(visibility, 2),
             "camera_guidance": "Front or side view good" if key_landmarks_visible else "Keep shoulder, elbow, and wrist visible",
             "processing_status": "tracking" if key_landmarks_visible else "low visibility",
+            "pose_detected": key_landmarks_visible,
+            "pose_visibility": round(pose_visibility, 3),
+            "camera_status": "Tracking" if key_landmarks_visible else "Adjust camera",
+            "issue": issue,
+            "is_valid_rep": key_landmarks_visible and self.stage == "down",
+            "debug": {"required_body_parts": ["shoulders", "elbows", "wrists", "hips"]},
         }
 
     def _safe_angle(self, dx, dy):

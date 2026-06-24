@@ -50,6 +50,7 @@ class SquatDetector(BaseExercise):
         else:
             depth_status = "N/A"
 
+        issue = None if key_landmark_visible else "Required body parts are not visible"
         return {
             "reps": self.reps,
             "knee_angle": int(knee_angle),
@@ -59,5 +60,11 @@ class SquatDetector(BaseExercise):
             "landmark_confidence": round(visibility, 2),
             "camera_guidance": "Full body visible" if key_landmark_visible else "Move back so hips, knees, and ankles are visible",
             "processing_status": "tracking" if key_landmark_visible else "low visibility",
+            "pose_detected": key_landmark_visible,
+            "pose_visibility": round(full_body_visibility, 3),
+            "camera_status": "Tracking" if key_landmark_visible else "Adjust camera",
+            "issue": issue,
+            "is_valid_rep": key_landmark_visible and self.stage == "up",
+            "debug": {"required_body_parts": ["hips", "knees", "ankles", "shoulders"]},
         }
     

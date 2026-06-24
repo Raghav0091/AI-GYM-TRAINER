@@ -122,13 +122,17 @@ class VoicePipeline:
 
         now = time.time()
 
-        is_major_issue = event in ["workout_started", "set_completed", "workout_completed"]
+        allowed_events = {"workout_started", "set_completed", "workout_completed", "major_form_issue", "achievement_unlocked"}
+        if event not in allowed_events:
+            return None
+
+        is_major_issue = event in ["workout_started", "set_completed", "workout_completed", "achievement_unlocked"]
 
         if not is_major_issue:
             if not issue:
                 return None
             
-            if now - self.last_spoken_at < 10:
+            if now - self.last_spoken_at < 15:
                 return None
             
         try:

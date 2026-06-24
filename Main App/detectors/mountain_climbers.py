@@ -45,10 +45,21 @@ class MountainClimbersDetector(BaseExercise):
 
         knee_drive = "GOOD DRIVE" if active_side else "LOW DRIVE"
         hip_status = "LEVEL" if plank_level <= 0.16 else "HIPS HIGH"
+        visibility = sum(landmarks[idx].visibility for idx in [self.LEFT_SHOULDER, self.RIGHT_SHOULDER, self.LEFT_HIP, self.RIGHT_HIP, self.LEFT_KNEE, self.RIGHT_KNEE, self.LEFT_ANKLE, self.RIGHT_ANKLE]) / 8
+        issue = None if key_visible else "Required body parts are not visible"
 
         return {
             "reps": self.reps,
             "knee_drive": knee_drive,
             "hip_status": hip_status,
             "active_knee": active_side or "none",
+            "stage": self.stage or "setup",
+            "pose_detected": key_visible,
+            "pose_visibility": round(visibility, 3),
+            "camera_status": "Tracking" if key_visible else "Adjust camera",
+            "issue": issue,
+            "camera_guidance": "Side view is best for mountain climbers" if key_visible else "Show shoulders, hips, knees, and ankles",
+            "processing_status": "tracking" if key_visible else "low visibility",
+            "is_valid_rep": key_visible and bool(active_side),
+            "debug": {"required_body_parts": ["shoulders", "hips", "knees", "ankles"]},
         }

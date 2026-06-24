@@ -1,7 +1,9 @@
 import math
+from collections import deque
 
 
 VISIBILITY_THRESHOLD = 0.35
+_MOTION_WINDOWS: dict[str, deque] = {}
 
 
 KEYPOINT_SPECS = [
@@ -93,6 +95,10 @@ def get_pose_features(landmarks):
         "feature_vector": feature_vector,
         "visibility_score": visibility_score,
         "pose_detected": visibility_score >= 0.45,
+        "landmarks": landmarks,
+        "torso_motion": _motion_score("torso", raw_keypoints.get("neck"), raw_keypoints.get("left_hip"), raw_keypoints.get("right_hip")),
+        "knee_motion": _motion_score("knees", raw_keypoints.get("left_knee"), raw_keypoints.get("right_knee")),
+        "elbow_motion": _motion_score("elbows", raw_keypoints.get("left_elbow"), raw_keypoints.get("right_elbow")),
     }
 
 
@@ -156,3 +162,32 @@ def _distance(first, second):
         return 0.0
 
     return math.hypot(first["x"] - second["x"], first["y"] - second["y"])
+
+
+def _center(points):
+    visible = [point for point in points if point and point.get("visible")]
+    if not visible:
+        return None
+    return {
+        "x": sum(point["x"] for point in visible) / len(visible),
+        "y": sum(point["y"] for point in visible) / len(visible),
+    }
+
+
+def _motion_score(name, *points):
+    center = _center(points)
+    if center is None:
+        return 0.0
+
+    window = _MOTION_WINDOWS.setdefault(name, deque(maxlen=5))
+    window.append(center)
+    if len(window) < 2:
+        return 0.0
+
+    distances = []
+    for i in range(1, len(window)):
+        prev = window[i - 1]
+        curr = window[i]
+        distances.append(math.hypot(curr["x"] - prev["x"], curr["y"] - prev["y"]))
+
+    return round(sum(distances) / len(distances), 4)

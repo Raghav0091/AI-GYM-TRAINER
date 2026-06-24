@@ -34,6 +34,13 @@ class DetectorMetricsAdapter:
 def standardize_detector_metrics(exercise_name, detector, metrics):
     safe_metrics = dict(STANDARD_METRICS)
     safe_metrics.update(metrics or {})
+    if "open_score" in safe_metrics and "form_score" not in (metrics or {}):
+        safe_metrics["form_score"] = safe_metrics.get("open_score")
+    if "quality_score" in safe_metrics and "form_score" not in (metrics or {}):
+        safe_metrics["form_score"] = safe_metrics.get("quality_score")
+    if "formScore" in safe_metrics and "form_score" not in (metrics or {}):
+        safe_metrics["form_score"] = safe_metrics.get("formScore")
+
     safe_metrics["exercise"] = exercise_name
     safe_metrics["reps"] = int(safe_metrics.get("reps") or 0)
     safe_metrics["stage"] = str(safe_metrics.get("stage") or getattr(detector, "stage", "setup") or "setup")
@@ -43,7 +50,8 @@ def standardize_detector_metrics(exercise_name, detector, metrics):
     safe_metrics["current_set_reps"] = int(safe_metrics.get("current_set_reps") or 0)
     safe_metrics["confidence"] = float(safe_metrics.get("confidence") or 0.0)
     safe_metrics["exercise_confidence"] = float(safe_metrics.get("exercise_confidence") or safe_metrics["confidence"] or 0.0)
-    safe_metrics["pose_visibility_score"] = float(safe_metrics.get("pose_visibility_score") or 0.0)
+    safe_metrics["pose_visibility"] = float(safe_metrics.get("pose_visibility") or safe_metrics.get("pose_visibility_score") or 0.0)
+    safe_metrics["pose_visibility_score"] = safe_metrics["pose_visibility"]
     safe_metrics["camera_status"] = safe_metrics.get("camera_status") or "tracking"
     safe_metrics["is_valid_rep"] = bool(safe_metrics.get("is_valid_rep", False))
     safe_metrics["pose_detected"] = bool(safe_metrics.get("pose_detected", False))
@@ -62,6 +70,7 @@ def standardize_detector_metrics(exercise_name, detector, metrics):
     debug.setdefault("camera_status", safe_metrics["camera_status"])
     debug.setdefault("exercise_confidence", safe_metrics["exercise_confidence"])
     debug.setdefault("pose_visibility_score", safe_metrics["pose_visibility_score"])
+    debug.setdefault("pose_visibility", safe_metrics["pose_visibility"])
     safe_metrics["debug"] = debug
 
     return safe_metrics

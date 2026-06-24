@@ -64,6 +64,7 @@ class LungesDetector(BaseExercise):
         else:
             balance_status = "OFF BALANCE"
 
+        issue = None if key_landmarks_visible else "Required body parts are not visible"
         return {
             "reps": self.reps,
             "front_knee_angle": int(front_knee_angle),
@@ -73,5 +74,11 @@ class LungesDetector(BaseExercise):
             "landmark_confidence": round(visibility, 2),
             "camera_guidance": "Side view good" if key_landmarks_visible else "Show hips, knees, ankles, and torso",
             "processing_status": "tracking" if key_landmarks_visible else "low visibility",
+            "pose_detected": key_landmarks_visible,
+            "pose_visibility": round(visibility, 3),
+            "camera_status": "Tracking" if key_landmarks_visible else "Adjust camera",
+            "issue": issue,
+            "is_valid_rep": key_landmarks_visible and self.stage == "up",
+            "debug": {"required_body_parts": ["hips", "knees", "ankles"]},
         }
     

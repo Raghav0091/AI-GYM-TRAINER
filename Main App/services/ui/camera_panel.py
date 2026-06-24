@@ -7,9 +7,9 @@ from services.vision.exercise_video_processor import VideoProcessorClass
 
 
 CAMERA_QUALITY_PRESETS = {
-    "Low": {"width": 640, "height": 360, "frameRate": 20},
+    "Low": {"width": 480, "height": 360, "frameRate": 20},
     "Standard": {"width": 640, "height": 480, "frameRate": 24},
-    "High": {"width": 1280, "height": 720, "frameRate": 30},
+    "High": {"width": 960, "height": 540, "frameRate": 30},
 }
 
 
@@ -41,6 +41,7 @@ def render_workout_camera(
     auto_detect_enabled=False,
     pose_data_collection_enabled=False,
     collector_context=None,
+    pose_profile="accuracy",
 ):
     """Render one stable WebRTC camera component for the active workout.
 
@@ -76,6 +77,8 @@ def render_workout_camera(
         processor.set_draw_pose_overlay(draw_pose_overlay)
         processor.set_auto_detect_enabled(auto_detect_enabled)
         processor.set_pose_data_collection(pose_data_collection_enabled, collector_context or {})
+        processor.set_quality_profile(quality)
+        processor.set_pose_profile(pose_profile)
         st.session_state.camera_processor_class = processor.__class__.__name__
 
         snapshot = processor.get_debug_snapshot()
@@ -134,6 +137,11 @@ def render_camera_debug_panel(context=None):
     st.caption(f"Detector class: {snapshot.get('detector_class') or st.session_state.get('camera_processor_class', 'N/A')}")
     st.caption(f"Last frame: {_format_age(snapshot.get('last_frame_at'))}")
     st.caption(f"FPS estimate: {snapshot.get('fps', st.session_state.get('camera_fps_estimate', 0.0))}")
+    st.caption(f"Input FPS: {snapshot.get('input_fps', st.session_state.get('input_fps', 0.0))}")
+    st.caption(f"Processed FPS: {snapshot.get('processed_fps', st.session_state.get('processed_fps', 0.0))}")
+    st.caption(f"Frame count: {snapshot.get('frame_count', st.session_state.get('frame_count', 0))}")
+    st.caption(f"Skipped frames: {snapshot.get('skipped_frames', st.session_state.get('skipped_frames', 0))}")
+    st.caption(f"Avg processing: {snapshot.get('average_processing_ms', st.session_state.get('average_processing_ms', 0.0))}ms")
     st.caption(f"Last metrics update: {_format_age(st.session_state.get('last_ui_metrics_update'))}")
     st.caption(f"Last room score update: {_format_age(st.session_state.get('last_room_score_update'))}")
     st.caption(f"Last DB write: {_format_age(st.session_state.get('last_db_write'))}")

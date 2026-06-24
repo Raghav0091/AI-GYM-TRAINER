@@ -62,6 +62,7 @@ class ShoulderPressDetector(BaseExercise):
         else:
             back_arch_status = "Excessive Arch"
 
+        issue = None if key_landmarks_visible else "Required body parts are not visible"
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),
@@ -71,5 +72,11 @@ class ShoulderPressDetector(BaseExercise):
             "landmark_confidence": round(visibility, 2),
             "camera_guidance": "Front view good" if key_landmarks_visible else "Keep shoulders, elbows, and wrists visible",
             "processing_status": "tracking" if key_landmarks_visible else "low visibility",
+            "pose_detected": key_landmarks_visible,
+            "pose_visibility": round(get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx]), 3),
+            "camera_status": "Tracking" if key_landmarks_visible else "Adjust camera",
+            "issue": issue,
+            "is_valid_rep": key_landmarks_visible and self.stage == "down",
+            "debug": {"required_body_parts": ["shoulders", "elbows", "wrists"]},
         }
     

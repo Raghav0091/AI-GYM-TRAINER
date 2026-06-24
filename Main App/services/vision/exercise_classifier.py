@@ -2,14 +2,20 @@ import math
 from pathlib import Path
 
 from services.vision.detector_registry import list_supported_exercises
+from services.vision.pose_quality import (
+    calculate_pose_visibility,
+    has_full_body,
+    has_lower_body,
+    has_upper_body,
+)
 
 
 UNKNOWN_EXERCISE = "Unknown"
-CONFIDENCE_THRESHOLD = 0.55
+CONFIDENCE_THRESHOLD = 0.60
 
 
 class HeuristicExerciseClassifier:
-    """Explainable exercise classifier that can later be replaced by TFLite."""
+    """Heuristic auto-detect classifier (rule-based, not a trained model)."""
 
     def __init__(self, model_path=None):
         app_root = Path(__file__).resolve().parents[2]
@@ -25,7 +31,15 @@ class HeuristicExerciseClassifier:
 
         raw = pose_features.get("raw_keypoints", {})
         normalized = pose_features.get("normalized_keypoints", {})
-        visibility = pose_features.get("visibility_score", 0.0)
+        landmarks = pose_features.get("landmarks")
+        visibility = float(calculate_pose_visibility(landmarks)) if landmarks is not None else float(pose_features.get("visibility_score", 0.0) or 0.0)
+        upper_visible = has_upper_body(landmarks) if landmarks is not None else visibility >= 0.45
+        lower_visible = has_lower_body(landmarks) if landmarks is not None else visibility >= 0.45
+        full_visible = has_full_body(landmarks) if landmarks is not None else visibility >= 0.45
+
+        if visibility < 0.40 or not (upper_visible or lower_visible):
+            return _unknown_prediction(visibility=visibility)
+
         scores = {exercise: 0.0 for exercise in list_supported_exercises()}
 
         torso_angle = _torso_angle(raw)
@@ -42,18 +56,27 @@ class HeuristicExerciseClassifier:
         left_elbow = _joint_angle(raw, "left_shoulder", "left_elbow", "left_wrist")
         right_elbow = _joint_angle(raw, "right_shoulder", "right_elbow", "right_wrist")
         elbow_bend = _bend_score([left_elbow, right_elbow])
+        torso_motion = float(pose_features.get("torso_motion", 0.0) or 0.0)
+        knee_motion = float(pose_features.get("knee_motion", 0.0) or 0.0)
+        elbow_motion = float(pose_features.get("elbow_motion", 0.0) or 0.0)
 
-        scores["Plank"] = max(scores["Plank"], 0.25 + body_horizontal * 0.55 + _hip_level_score(raw) * 0.2)
-        scores["Push-ups"] = max(scores["Push-ups"], 0.2 + body_horizontal * 0.45 + elbow_bend * 0.25 + _hands_near_shoulders(normalized) * 0.1)
-        scores["Mountain Climbers"] = max(scores["Mountain Climbers"], 0.15 + body_horizontal * 0.45 + high_knee * 0.35)
-        scores["Squats"] = max(scores["Squats"], 0.2 + body_upright * 0.35 + avg_knee_bend * 0.45)
-        scores["Lunges"] = max(scores["Lunges"], 0.15 + body_upright * 0.3 + avg_knee_bend * 0.25 + min(1.0, split_stance * 1.2) * 0.3)
-        scores["Shoulder Press"] = max(scores["Shoulder Press"], 0.2 + body_upright * 0.25 + wrists_above_shoulders * 0.55)
-        scores["Biceps Curls (Dumbbell)"] = max(scores["Biceps Curls (Dumbbell)"], 0.25 + body_upright * 0.35 + elbow_bend * 0.3 + _elbows_near_torso(normalized) * 0.1)
-        scores["Jumping Jacks"] = max(scores["Jumping Jacks"], 0.15 + min(1.0, feet_width * 0.9) * 0.4 + min(1.0, wrist_width * 0.5) * 0.25 + wrists_above_shoulders * 0.2)
-        scores["High Knees"] = max(scores["High Knees"], 0.2 + body_upright * 0.35 + high_knee * 0.45)
-        scores["Crunches"] = max(scores["Crunches"], 0.18 + _lying_core_score(raw) * 0.52 + _shoulders_near_hips(normalized) * 0.3)
-        scores["Sit-ups"] = max(scores["Sit-ups"], 0.18 + _lying_core_score(raw) * 0.38 + body_upright * 0.22 + _shoulders_near_hips(normalized) * 0.22)
+        if lower_visible:
+            scores["Squats"] = max(scores["Squats"], 0.18 + body_upright * 0.30 + avg_knee_bend * 0.35 + min(1.0, knee_motion * 4.0) * 0.15)
+            scores["Lunges"] = max(scores["Lunges"], 0.15 + body_upright * 0.2 + avg_knee_bend * 0.2 + min(1.0, split_stance * 1.5) * 0.25 + min(1.0, knee_motion * 4.0) * 0.1)
+            scores["High Knees"] = max(scores["High Knees"], 0.15 + body_upright * 0.30 + high_knee * 0.4 + min(1.0, knee_motion * 4.0) * 0.15)
+
+        if upper_visible:
+            scores["Biceps Curls (Dumbbell)"] = max(scores["Biceps Curls (Dumbbell)"], 0.2 + body_upright * 0.3 + elbow_bend * 0.25 + _elbows_near_torso(normalized) * 0.15 + min(1.0, elbow_motion * 4.0) * 0.1)
+            scores["Shoulder Press"] = max(scores["Shoulder Press"], 0.18 + body_upright * 0.25 + wrists_above_shoulders * 0.4 + min(1.0, elbow_motion * 4.0) * 0.15)
+
+        if full_visible:
+            scores["Jumping Jacks"] = max(scores["Jumping Jacks"], 0.15 + min(1.0, feet_width * 0.9) * 0.3 + min(1.0, wrist_width * 0.5) * 0.2 + wrists_above_shoulders * 0.15 + min(1.0, knee_motion * 4.0) * 0.2)
+
+        scores["Plank"] = max(scores["Plank"], 0.20 + body_horizontal * 0.5 + _hip_level_score(raw) * 0.2 + max(0.0, 1.0 - min(1.0, torso_motion * 8.0)) * 0.1)
+        scores["Push-ups"] = max(scores["Push-ups"], 0.18 + body_horizontal * 0.40 + elbow_bend * 0.20 + _hands_near_shoulders(normalized) * 0.08 + min(1.0, elbow_motion * 4.0) * 0.08)
+        scores["Mountain Climbers"] = max(scores["Mountain Climbers"], 0.12 + body_horizontal * 0.35 + high_knee * 0.25 + min(1.0, knee_motion * 4.0) * 0.2)
+        scores["Crunches"] = max(scores["Crunches"], 0.15 + _lying_core_score(raw) * 0.45 + _shoulders_near_hips(normalized) * 0.2 + min(1.0, torso_motion * 4.0) * 0.2)
+        scores["Sit-ups"] = max(scores["Sit-ups"], 0.15 + _lying_core_score(raw) * 0.35 + body_upright * 0.15 + _shoulders_near_hips(normalized) * 0.15 + min(1.0, torso_motion * 4.0) * 0.2)
 
         scores = {exercise: round(max(0.0, min(1.0, score * visibility)), 3) for exercise, score in scores.items()}
         exercise, confidence = max(scores.items(), key=lambda item: item[1])
@@ -66,11 +89,20 @@ class HeuristicExerciseClassifier:
             "confidence": confidence,
             "scores": scores,
             "using_tflite": self.using_tflite,
+            "visibility": visibility,
+            "classifier_type": "heuristic",
         }
 
 
-def _unknown_prediction():
-    return {"exercise": UNKNOWN_EXERCISE, "confidence": 0.0, "scores": {}, "using_tflite": False}
+def _unknown_prediction(visibility=0.0):
+    return {
+        "exercise": UNKNOWN_EXERCISE,
+        "confidence": 0.0,
+        "scores": {},
+        "using_tflite": False,
+        "visibility": round(float(visibility or 0.0), 3),
+        "classifier_type": "heuristic",
+    }
 
 
 def _point(points, name):

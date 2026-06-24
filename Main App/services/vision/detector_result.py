@@ -9,6 +9,7 @@ class DetectorResult:
     form_score: int = 0
     issue: str | None = None
     pose_detected: bool = False
+    pose_visibility: float = 0.0
     confidence: float = 0.0
     hold_seconds: float = 0.0
     sets_completed: int = 0

@@ -252,6 +252,9 @@ def render_active_workout_grid():
     reps_per_set = st.session_state.get("reps_per_set", 0)
     form_score = st.session_state.get("form_score", 0)
     stage = st.session_state.get("detector_stage", "setup")
+    selected_mode = st.session_state.get("selected_workout_mode", "Manual Exercise Selection")
+    guidance_tip = st.session_state.get("camera_guidance", "Keep your full body visible.")
+    ai_tip = st.session_state.get("coach_feedback") or guidance_tip
     duration = int(time.time() - (st.session_state.get("workout_started_at") or time.time()))
     primary_label = "Hold Time" if active_exercise == "Plank" else "Reps"
     primary_value = f"{int(hold_seconds)}s" if active_exercise == "Plank" else total_reps
@@ -262,11 +265,15 @@ def render_active_workout_grid():
         f"""
         <div class="active-grid">
             <div class="active-card">
-                <span>Mode</span>
-                <strong>{'Auto Detect' if auto_detect else 'Manual'}</strong>
+                <span>Selected Mode</span>
+                <strong>{safe_text(selected_mode)}</strong>
             </div>
             <div class="active-card">
-                <span>{'Detected Exercise' if auto_detect else 'Exercise'}</span>
+                <span>Selected Exercise</span>
+                <strong>{safe_text(exercise)}</strong>
+            </div>
+            <div class="active-card">
+                <span>Detected Exercise</span>
                 <strong>{safe_text(detected_exercise if auto_detect else active_exercise)}</strong>
             </div>
             <div class="active-card accent-purple">
@@ -300,6 +307,10 @@ def render_active_workout_grid():
             <div class="active-card">
                 <span>Duration</span>
                 <strong>{duration}s</strong>
+            </div>
+            <div class="active-card">
+                <span>AI Coach Tip</span>
+                <strong>{safe_text(ai_tip)}</strong>
             </div>
         </div>
         """,
@@ -874,6 +885,13 @@ def reset_workout_state(plan_exercise, plan_sets, plan_reps):
     st.session_state.last_saved_sets_completed = 0
     st.session_state.last_notified_sets_completed = 0
     st.session_state.last_notified_workout_complete = False
+    st.session_state.input_fps = 0.0
+    st.session_state.processed_fps = 0.0
+    st.session_state.frame_count = 0
+    st.session_state.average_processing_ms = 0.0
+    st.session_state.skipped_frames = 0
+    st.session_state.last_error = ""
+    st.session_state.last_major_issue_voice_at = 0.0
 
 
 def complete_workout_session(exercise):
@@ -1096,6 +1114,12 @@ def main():
             index=["Low", "Standard", "High"].index(st.session_state.get("camera_quality", "Standard")),
             help="Use Standard for best stability. Choose Low if the camera opens slowly.",
         )
+        st.session_state.pose_model_profile = st.selectbox(
+            "Pose profile",
+            ["Accuracy", "Faster"],
+            index=["Accuracy", "Faster"].index(st.session_state.get("pose_model_profile", "Accuracy")),
+            help="Accuracy uses model complexity 1. Faster uses model complexity 0.",
+        )
         app_mode = st.radio(
             "Mode",
             ["Solo Workout", "Fitness Arena", "Dashboard / History"],
@@ -1103,14 +1127,16 @@ def main():
         )
 
         if app_mode == "Solo Workout" and not workout_started:
-            st.session_state.auto_detect_exercise = st.toggle(
-                "Auto-detect exercise",
-                value=st.session_state.get("auto_detect_exercise", False),
-                help="Detect the exercise from body movement and run the matching detector when confidence is high.",
+            selected_workout_mode = st.radio(
+                "Workout control",
+                ["Manual Exercise Selection", "Auto Detect Exercise"],
+                index=0 if st.session_state.get("selected_workout_mode", "Manual Exercise Selection") == "Manual Exercise Selection" else 1,
             )
+            st.session_state.selected_workout_mode = selected_workout_mode
+            st.session_state.auto_detect_exercise = selected_workout_mode == "Auto Detect Exercise"
 
             if st.session_state.auto_detect_exercise:
-                st.info("The app will detect your exercise from body movement.")
+                st.info("Auto Detect mode is heuristic and experimental. Manual mode gives the most reliable rep counting.")
 
         if st.session_state.get("debug_mode", False):
             st.session_state.pose_data_collection_enabled = st.toggle(
@@ -1177,6 +1203,11 @@ def main():
 
             label = "Hold seconds" if exercise == "Plank" else "Reps"
             st.info(f"**{exercise}** -- {sets} Sets / {reps} {label}")
+            st.session_state.show_debug_overlay = st.toggle(
+                "Show Debug Overlay",
+                value=st.session_state.get("show_debug_overlay", False),
+                help="Displays processor performance and pose diagnostics.",
+            )
             st.session_state.show_pose_overlay = st.toggle(
                 "Show pose guide lines",
                 value=st.session_state.get("show_pose_overlay", False),
@@ -1276,6 +1307,10 @@ def main():
                 st.caption(f"Detector name: {st.session_state.get('detector_name', 'Unavailable')}")
                 st.caption(f"Landmark confidence: {st.session_state.get('landmark_confidence', 0)}")
                 st.caption(f"Processing: {st.session_state.get('processing_status', 'waiting')}")
+                st.caption(f"Input FPS: {st.session_state.get('input_fps', 0.0)}")
+                st.caption(f"Processed FPS: {st.session_state.get('processed_fps', 0.0)}")
+                st.caption(f"Avg processing ms: {st.session_state.get('average_processing_ms', 0.0)}")
+                st.caption(f"Skipped frames: {st.session_state.get('skipped_frames', 0)}")
                 st.caption(f"Guidance: {st.session_state.get('camera_guidance', '')}")
                 st.caption(f"Form score: {st.session_state.get('form_score', 0)}")
                 st.caption(f"Issue: {st.session_state.get('detector_issue') or 'None'}")
@@ -1385,6 +1420,7 @@ def main():
             mode=camera_mode,
             room_id=room_id,
             quality=st.session_state.get("camera_quality", "Standard"),
+            pose_profile="faster" if st.session_state.get("pose_model_profile", "Accuracy") == "Faster" else "accuracy",
             draw_pose_overlay=st.session_state.get("show_pose_overlay", False),
             auto_detect_enabled=st.session_state.get("auto_detect_exercise", False),
             pose_data_collection_enabled=st.session_state.get("pose_data_collection_enabled", False),
@@ -1399,13 +1435,27 @@ def main():
         if st.session_state.get("auto_detect_exercise") and st.session_state.get("exercise_confidence", 0.0) < 0.55:
             st.info("Move farther back and keep your full body visible.")
 
+        if st.session_state.get("pose_visibility_score", 0.0) < 0.45:
+            st.markdown(
+                """
+                <div class="camera-help-card">
+                    <h3>Camera Setup Help</h3>
+                    <p>Move farther back</p>
+                    <p>Make sure full body is visible</p>
+                    <p>Use good lighting</p>
+                    <p>Place camera at waist/chest height</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         if st.button("Refresh live metrics", width="stretch"):
             sync_metrics_update(context)
 
         if st.session_state.get("frame_error") or st.session_state.get("camera_last_error"):
             render_camera_troubleshooting()
 
-        if st.session_state.get("debug_mode", False):
+        if st.session_state.get("show_debug_overlay", False):
             render_camera_debug_panel(context)
 
         inject_webrtc_styles()

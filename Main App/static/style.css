@@ -1404,6 +1404,36 @@ button[kind="secondary"] {
   color: var(--orange) !important;
 }
 
+.camera-help-card {
+  border-radius: 20px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: linear-gradient(145deg, rgba(23, 17, 34, 0.95), rgba(15, 11, 24, 0.9));
+  color: #FFFFFF;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.camera-help-card h3 {
+  color: #F97316;
+  margin: 0 0 0.4rem 0;
+}
+
+.camera-help-card p {
+  margin: 0.25rem 0;
+  color: #B8AFC8;
+}
+
+.active-card strong,
+.coach-card p {
+  color: #FFFFFF !important;
+}
+
+.stButton > button,
+.stDownloadButton > button {
+  color: #FFFFFF !important;
+}
+
 /* Media / webcam */
 [data-testid="stVerticalBlock"] iframe,
 video {

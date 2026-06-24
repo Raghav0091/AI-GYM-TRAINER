@@ -75,7 +75,7 @@ class PlankDetector(BaseExercise):
 
         issue = None
         if not key_visible:
-            issue = "Shoulders, hips, and ankles must be visible."
+            issue = "Required body parts are not visible"
         elif hip_status == "SAGGING":
             issue = "Lift your hips slightly and brace your core."
         elif hip_status == "PIKED UP":
@@ -91,5 +91,10 @@ class PlankDetector(BaseExercise):
             "stage": self.stage,
             "issue": issue,
             "is_valid_rep": False,
-            "camera_status": "tracking" if key_visible else "low visibility",
+            "camera_status": "Tracking" if key_visible else "Adjust camera",
+            "pose_detected": key_visible,
+            "pose_visibility": round(sum(landmarks[idx].visibility for idx in [shoulder_idx, hip_idx, ankle_idx]) / 3, 3),
+            "camera_guidance": "Side view is best for plank" if key_visible else "Show shoulders, hips, and ankles",
+            "processing_status": "tracking" if key_visible else "low visibility",
+            "debug": {"required_body_parts": ["shoulders", "hips", "ankles"]},
         }

@@ -49,6 +49,7 @@ def sync_metrics_update(context):
     st.session_state.detected_exercise = detected_exercise
     st.session_state.exercise_confidence = float(latest_metrics.get("exercise_confidence", 0.0) or 0.0)
     st.session_state.pose_visibility_score = float(latest_metrics.get("pose_visibility_score", 0.0) or 0.0)
+    st.session_state.pose_visibility = st.session_state.pose_visibility_score
     st.session_state.detector_name = latest_metrics.get("detector_name", "Unavailable")
     st.session_state.auto_detect_exercise = bool(latest_metrics.get("auto_detect_enabled", st.session_state.get("auto_detect_exercise", False)))
 
@@ -61,6 +62,12 @@ def sync_metrics_update(context):
     st.session_state.detector_issue = latest_metrics.get("issue")
     st.session_state.is_valid_rep = latest_metrics.get("is_valid_rep", False)
     st.session_state.detector_debug = latest_metrics.get("debug", {})
+    st.session_state.input_fps = float(latest_metrics.get("input_fps", 0.0) or 0.0)
+    st.session_state.processed_fps = float(latest_metrics.get("processed_fps", 0.0) or 0.0)
+    st.session_state.frame_count = int(latest_metrics.get("frame_count", st.session_state.get("frame_count", 0)) or 0)
+    st.session_state.average_processing_ms = float(latest_metrics.get("average_processing_ms", st.session_state.get("average_processing_ms", 0.0)) or 0.0)
+    st.session_state.skipped_frames = int(latest_metrics.get("skipped_frames", st.session_state.get("skipped_frames", 0)) or 0)
+    st.session_state.last_error = latest_metrics.get("frame_error") or latest_metrics.get("last_error", st.session_state.get("last_error", ""))
     
     reps = latest_metrics.get("reps", 0)
     hold_seconds = int(latest_metrics.get("hold_seconds", 0) or 0)
@@ -180,27 +187,20 @@ def sync_metrics_update(context):
         st.session_state.camera_status = "Pose not detected"
         st.session_state.camera_guidance = latest_metrics.get("camera_guidance", "Move farther back so your full body is visible.")
 
-    if not pose_detected and st.session_state.get("voice_pipeline"):
-        result = st.session_state.voice_pipeline.process_event(
-            event="no_pose_detected",
-            exercise=active_exercise,
-            metrics={"issue": "No pose detected! Please step into the camera frame."},
-        )
-    
-        queue_voice_feedback(result)
-        if result:
-            st.session_state.last_voice_feedback = time.time()
-
     if st.session_state.get("voice_pipeline"):
-        result = st.session_state.voice_pipeline.process_event(
-            event="ongoing_form_check",
-            exercise=active_exercise,
-            metrics=latest_metrics,
-        )
-        
-        queue_voice_feedback(result)
-        if result:
-            st.session_state.last_voice_feedback = time.time()
+        now_ts = time.time()
+        issue = latest_metrics.get("issue")
+        last_major_issue = st.session_state.get("last_major_issue_voice_at", 0.0)
+        if issue and (now_ts - last_major_issue) >= 15.0:
+            result = st.session_state.voice_pipeline.process_event(
+                event="major_form_issue",
+                exercise=active_exercise,
+                metrics=latest_metrics,
+            )
+            queue_voice_feedback(result)
+            if result:
+                st.session_state.last_voice_feedback = now_ts
+                st.session_state.last_major_issue_voice_at = now_ts
 
 
 def _is_current_workout_valid(exercise):
