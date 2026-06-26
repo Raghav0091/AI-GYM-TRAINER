@@ -7,7 +7,6 @@ STANDARD_METRICS = {
     "selected_exercise": "",
     "detected_exercise": "Unknown",
     "exercise_confidence": 0.0,
-    "auto_detect_enabled": False,
     "pose_visibility_score": 0.0,
     "detector_name": "Unavailable",
     "processing_status": "waiting",
@@ -34,12 +33,6 @@ class DetectorMetricsAdapter:
 def standardize_detector_metrics(exercise_name, detector, metrics):
     safe_metrics = dict(STANDARD_METRICS)
     safe_metrics.update(metrics or {})
-    if "open_score" in safe_metrics and "form_score" not in (metrics or {}):
-        safe_metrics["form_score"] = safe_metrics.get("open_score")
-    if "quality_score" in safe_metrics and "form_score" not in (metrics or {}):
-        safe_metrics["form_score"] = safe_metrics.get("quality_score")
-    if "formScore" in safe_metrics and "form_score" not in (metrics or {}):
-        safe_metrics["form_score"] = safe_metrics.get("formScore")
 
     safe_metrics["exercise"] = exercise_name
     safe_metrics["reps"] = int(safe_metrics.get("reps") or 0)

@@ -9,7 +9,6 @@ from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS, EXERCISE_TUTORIALS
 from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
 from services.persistence.exercise_repository import init_db
-from services.api.backend_client import backend_base_url, backend_health_check
 from services.tracking.metrics import sync_metrics_update
 from services.ui.camera_panel import (
     render_camera_debug_panel,
@@ -28,19 +27,6 @@ from services.gamification.progression_service import (
 )
 from services.gamification.scoring_service import level_progress
 from services.vision.detector_registry import DETECTOR_REGISTRY
-from services.multiplayer.leaderboard_service import get_room_leaderboard
-from services.multiplayer.room_service import (
-    add_room_event,
-    create_room,
-    end_room,
-    get_room,
-    get_room_by_code,
-    get_room_events,
-    get_room_members,
-    join_room,
-    start_room,
-)
-from services.multiplayer.score_service import upsert_room_score
 from groq import Groq
 from dotenv import find_dotenv, load_dotenv
 from services.coaching.llm import LLMCoach
@@ -101,11 +87,6 @@ def get_groq_api_key():
         pass
 
     return api_key
-
-
-@st.cache_data(ttl=15)
-def get_cached_backend_status():
-    return backend_health_check(timeout=0.5)
 
 
 def render_section_header(title, subtitle=""):
@@ -240,9 +221,6 @@ def render_workout_header():
 def render_active_workout_grid():
     exercise = st.session_state.get("exercise_type", "Workout")
     active_exercise = st.session_state.get("active_detector_exercise", exercise)
-    auto_detect = st.session_state.get("auto_detect_exercise", False)
-    detected_exercise = st.session_state.get("detected_exercise", "Unknown")
-    confidence = int(round(float(st.session_state.get("exercise_confidence", 0.0) or 0.0) * 100))
     visibility = int(round(float(st.session_state.get("pose_visibility_score", 0.0) or 0.0) * 100))
     detector_name = st.session_state.get("detector_name", "Unavailable")
     total_reps = st.session_state.get("reps", 0)
@@ -252,7 +230,6 @@ def render_active_workout_grid():
     reps_per_set = st.session_state.get("reps_per_set", 0)
     form_score = st.session_state.get("form_score", 0)
     stage = st.session_state.get("detector_stage", "setup")
-    selected_mode = st.session_state.get("selected_workout_mode", "Manual Exercise Selection")
     guidance_tip = st.session_state.get("camera_guidance", "Keep your full body visible.")
     ai_tip = st.session_state.get("coach_feedback") or guidance_tip
     duration = int(time.time() - (st.session_state.get("workout_started_at") or time.time()))
@@ -265,16 +242,8 @@ def render_active_workout_grid():
         f"""
         <div class="active-grid">
             <div class="active-card">
-                <span>Selected Mode</span>
-                <strong>{safe_text(selected_mode)}</strong>
-            </div>
-            <div class="active-card">
-                <span>Selected Exercise</span>
+                <span>Exercise</span>
                 <strong>{safe_text(exercise)}</strong>
-            </div>
-            <div class="active-card">
-                <span>Detected Exercise</span>
-                <strong>{safe_text(detected_exercise if auto_detect else active_exercise)}</strong>
             </div>
             <div class="active-card accent-purple">
                 <span>Form Score</span>
@@ -291,10 +260,6 @@ def render_active_workout_grid():
             <div class="active-card accent-purple">
                 <span>Stage</span>
                 <strong>{safe_text(stage)}</strong>
-            </div>
-            <div class="active-card">
-                <span>Confidence</span>
-                <strong>{confidence}%</strong>
             </div>
             <div class="active-card">
                 <span>Pose Visibility</span>
@@ -565,207 +530,6 @@ def render_gamification_dashboard(user_id):
         )
     else:
         st.info("Leaderboard unlocks after the first workout.")
-
-
-def render_room_leaderboard(room):
-    leaderboard = get_room_leaderboard(room["id"], room["exercise_name"])
-    st.markdown("##### Live Leaderboard")
-
-    if not leaderboard:
-        st.info("Scores appear when players start moving.")
-        return
-
-    cards = []
-    for index, row in enumerate(leaderboard, start=1):
-        primary = f"{int(row['hold_seconds'])}s" if room["exercise_name"] == "Plank" else int(row["reps"])
-        primary_label = "Hold" if room["exercise_name"] == "Plank" else "Reps"
-        cards.append(
-            f"<div class='leaderboard-card'>"
-            f"<div class='rank-pill'>#{index}</div>"
-            f"<h3>{safe_text(row['username'])}</h3>"
-            f"<div class='leaderboard-stats'>"
-            f"<span>{primary_label}<strong>{primary}</strong></span>"
-            f"<span>Sets<strong>{int(row['sets_completed'])}</strong></span>"
-            f"<span>Form<strong>{int(row['form_score'])}</strong></span>"
-            f"<span>Score<strong>{int(row['workout_score'])}</strong></span>"
-            f"</div>"
-            f"<p>{safe_text(row['status'])}</p>"
-            f"</div>"
-        )
-
-    st.markdown(f"<div class='leaderboard-grid'>{''.join(cards)}</div>", unsafe_allow_html=True)
-
-
-def render_room_events(room_id):
-    events = get_room_events(room_id)
-    st.markdown("##### Activity Feed")
-
-    if not events:
-        st.info("Room activity will appear here.")
-        return
-
-    event_html = "".join(
-        f"<li><span>{safe_text(event['event_type'])}</span>{safe_text(event['message'])}</li>"
-        for event in events
-    )
-    st.markdown(f"<ul class='activity-feed'>{event_html}</ul>", unsafe_allow_html=True)
-
-
-def render_fitness_arena():
-    render_section_header(
-        "AI Fitness Arena",
-        "Create a local workout room, invite players with a room code, and compete on a live leaderboard.",
-    )
-
-    room_id = st.session_state.get("arena_room_id")
-    room = get_room(room_id) if room_id else None
-
-    if room:
-        render_room_lobby(room)
-        return
-
-    create_tab, join_tab = st.tabs(["Create Room", "Join Room"])
-
-    with create_tab:
-        with st.form("create_arena_room", clear_on_submit=False):
-            room_name = st.text_input("Room name", value=f"{st.session_state.get('username', 'Athlete')}'s Arena")
-            exercise_name = st.selectbox("Exercise", EXERCISE_OPTIONS, key="arena_create_exercise")
-            game_mode = st.selectbox("Game mode", ["Practice", "Race", "Team Challenge"])
-            target_sets = st.number_input("Target sets", min_value=1, max_value=20, value=3, step=1)
-
-            if exercise_name == "Plank":
-                target_hold_seconds = st.number_input("Target hold seconds", min_value=10, max_value=300, value=30, step=5)
-                target_reps = 0
-            else:
-                target_reps = st.number_input("Target reps", min_value=5, max_value=500, value=30, step=5)
-                target_hold_seconds = 0
-
-            submitted = st.form_submit_button("Create Room", width="stretch")
-
-        if submitted:
-            if game_mode == "Team Challenge":
-                st.info("Team Challenge coming soon. Use Practice or Race for now.")
-            elif exercise_name not in DETECTOR_REGISTRY:
-                st.error("Detector not available for this exercise yet.")
-            else:
-                room = create_room(
-                    st.session_state.user_id,
-                    st.session_state.username,
-                    room_name,
-                    exercise_name,
-                    int(target_reps),
-                    int(target_sets),
-                    int(target_hold_seconds),
-                    game_mode,
-                )
-                st.session_state.arena_room_id = room["id"]
-                st.session_state.arena_room_code = room["room_code"]
-                st.rerun()
-
-    with join_tab:
-        with st.form("join_arena_room", clear_on_submit=False):
-            room_code = st.text_input("Room code", placeholder="GYM-742").upper()
-            submitted = st.form_submit_button("Join Room", width="stretch")
-
-        if submitted:
-            room, error = join_room(room_code, st.session_state.user_id, st.session_state.username)
-
-            if error:
-                st.error(error)
-            else:
-                st.session_state.arena_room_id = room["id"]
-                st.session_state.arena_room_code = room["room_code"]
-                st.rerun()
-
-
-def render_room_lobby(room):
-    members = get_room_members(room["id"])
-    is_host = room["host_user_id"] == st.session_state.get("user_id")
-    target_text = (
-        f"{room['target_hold_seconds']} sec x {room['target_sets']} sets"
-        if room["exercise_name"] == "Plank"
-        else f"{room['target_reps']} reps / {room['target_sets']} sets"
-    )
-
-    st.markdown(
-        f"""
-        <div class="arena-room-card">
-            <div>
-                <div class="section-kicker">Room Code</div>
-                <h1>{safe_text(room["room_code"])}</h1>
-                <p>{safe_text(room.get("room_name") or "Fitness Arena")} | {safe_text(room["status"].title())}</p>
-            </div>
-            <div class="arena-room-meta">
-                <span>Exercise<strong>{safe_text(room["exercise_name"])}</strong></span>
-                <span>Mode<strong>{safe_text(room["game_mode"])}</strong></span>
-                <span>Target<strong>{safe_text(target_text)}</strong></span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if room["game_mode"] == "Team Challenge":
-        st.info("Team Challenge coming soon.")
-
-    if room.get("winner_user_id"):
-        winner = next((member for member in members if member["user_id"] == room["winner_user_id"]), None)
-        winner_name = winner["username"] if winner else "Winner"
-        st.success(f"{winner_name} won the race!")
-
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.markdown("##### Joined Players")
-        member_html = "".join(
-            f"<div class='player-pill'>{safe_text(member['username'])}{' <span>Host</span>' if member['is_host'] else ''}</div>"
-            for member in members
-        )
-        st.markdown(f"<div class='player-list'>{member_html}</div>", unsafe_allow_html=True)
-
-    with col2:
-        if st.button("Refresh Room", width="stretch"):
-            st.rerun()
-
-        if is_host and room["status"] == "waiting":
-            if st.button("Start Room Workout", width="stretch"):
-                if start_room(room["id"], st.session_state.user_id):
-                    st.session_state.room_mode_active = True
-                    st.session_state.arena_room_id = room["id"]
-                    reset_workout_state(
-                        room["exercise_name"],
-                        room["target_sets"],
-                        room["target_hold_seconds"] if room["exercise_name"] == "Plank" else room["target_reps"],
-                    )
-                    st.rerun()
-
-        elif room["status"] == "waiting":
-            st.info("Waiting for host to start.")
-
-        if room["status"] == "active" and not st.session_state.get("workout_started"):
-            if st.button("Start My Camera Workout", width="stretch"):
-                st.session_state.room_mode_active = True
-                st.session_state.arena_room_id = room["id"]
-                reset_workout_state(
-                    room["exercise_name"],
-                    room["target_sets"],
-                    room["target_hold_seconds"] if room["exercise_name"] == "Plank" else room["target_reps"],
-                )
-                st.rerun()
-
-        if is_host and room["status"] != "completed":
-            if st.button("End Room", width="stretch"):
-                end_room(room["id"], st.session_state.user_id)
-                st.session_state.room_mode_active = False
-                st.rerun()
-
-        if st.button("Leave Room View", width="stretch"):
-            st.session_state.arena_room_id = None
-            st.session_state.arena_room_code = ""
-            st.session_state.room_mode_active = False
-            st.rerun()
-
-    render_room_leaderboard(room)
-    render_room_events(room["id"])
 
 
 def render_exercise_tutorial(exercise):
@@ -1079,19 +843,6 @@ def main():
         st.divider()
 
         progress = get_user_progress(st.session_state.get("user_id"))
-        backend_status = get_cached_backend_status()
-        backend_label = "Online" if backend_status.get("ok") else "Offline"
-        backend_class = "backend-status--online" if backend_status.get("ok") else "backend-status--offline"
-        st.markdown(
-            f"""
-            <div class="sidebar-card sidebar-card--section backend-status {backend_class}">
-                <div class="sidebar-card__label">Production Backend</div>
-                <div class="sidebar-card__value">{safe_text(backend_label)}</div>
-                <div class="sidebar-card__label">{safe_text(backend_base_url())}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
         st.markdown(
             f"""
             <div class="sidebar-card sidebar-card--section">
@@ -1120,30 +871,15 @@ def main():
             index=["Accuracy", "Faster"].index(st.session_state.get("pose_model_profile", "Accuracy")),
             help="Accuracy uses model complexity 1. Faster uses model complexity 0.",
         )
+        mode_options = ["Solo Workout", "Dashboard / History"]
+        if st.session_state.get("app_mode") not in mode_options:
+            st.session_state.app_mode = "Solo Workout"
+
         app_mode = st.radio(
             "Mode",
-            ["Solo Workout", "Fitness Arena", "Dashboard / History"],
+            mode_options,
             key="app_mode",
         )
-
-        if app_mode == "Solo Workout" and not workout_started:
-            selected_workout_mode = st.radio(
-                "Workout control",
-                ["Manual Exercise Selection", "Auto Detect Exercise"],
-                index=0 if st.session_state.get("selected_workout_mode", "Manual Exercise Selection") == "Manual Exercise Selection" else 1,
-            )
-            st.session_state.selected_workout_mode = selected_workout_mode
-            st.session_state.auto_detect_exercise = selected_workout_mode == "Auto Detect Exercise"
-
-            if st.session_state.auto_detect_exercise:
-                st.info("Auto Detect mode is heuristic and experimental. Manual mode gives the most reliable rep counting.")
-
-        if st.session_state.get("debug_mode", False):
-            st.session_state.pose_data_collection_enabled = st.toggle(
-                "Enable Pose Data Collection",
-                value=st.session_state.get("pose_data_collection_enabled", False),
-                help="Developer mode only. Saves normalized pose rows for future ML training.",
-            )
 
         if app_mode == "Solo Workout":
             st.markdown(
@@ -1157,11 +893,7 @@ def main():
             )
 
         if app_mode == "Solo Workout" and not workout_started:
-            if st.session_state.get("auto_detect_exercise", False):
-                plan_exercise = st.session_state.get("plan_exercise", "Squats")
-                st.caption("Auto-detect starts with a safe fallback detector, then switches after prediction smoothing.")
-            else:
-                plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
+            plan_exercise = st.selectbox("Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
 
             if plan_exercise == "Plank" and st.session_state.get("plan_reps", 10) < 30:
                 st.session_state.plan_reps = 30
@@ -1219,30 +951,6 @@ def main():
             if end_session_button:
                 exercise = st.session_state.get("active_detector_exercise") or exercise
                 workout_result = complete_workout_session(exercise)
-                if st.session_state.get("arena_room_id"):
-                    room = get_room(st.session_state.arena_room_id)
-                    if room:
-                        status = "cancelled" if workout_result and workout_result.get("cancelled") else "completed"
-                        metrics = {
-                            "reps": int(st.session_state.get("reps", 0) or 0),
-                            "sets_completed": int(st.session_state.get("sets_completed", 0) or 0),
-                            "hold_seconds": int(st.session_state.get("hold_seconds", 0) or 0),
-                            "form_score": int(st.session_state.get("average_form_score") or st.session_state.get("form_score", 0) or 0),
-                        }
-                        upsert_room_score(
-                            room,
-                            st.session_state.user_id,
-                            st.session_state.username,
-                            metrics,
-                            status=status,
-                        )
-                        add_room_event(
-                            room["id"],
-                            st.session_state.user_id,
-                            status,
-                            f"{st.session_state.username} {'cancelled' if status == 'cancelled' else 'finished'} their workout.",
-                        )
-                    st.session_state.room_mode_active = False
                 generate_session_summary(exercise)
                 st.session_state.workout_started = False
                 st.session_state.workout_state = "ended"
@@ -1292,17 +1000,12 @@ def main():
             st.metric("Form Score", f"{st.session_state.get('form_score', 0)} / 100")
             st.metric("Camera Status", st.session_state.get("camera_status", "Camera loading"))
             st.metric("Current Stage", st.session_state.get("detector_stage", "setup"))
-            st.metric("Detected Exercise", st.session_state.get("detected_exercise", "Unknown"))
-            st.metric("Confidence", f"{int(round(st.session_state.get('exercise_confidence', 0.0) * 100))}%")
             st.metric("Pose Visibility", f"{int(round(st.session_state.get('pose_visibility_score', 0.0) * 100))}%")
             st.metric("Current Detector", st.session_state.get("detector_name", "Unavailable"))
 
             if st.session_state.get("debug_mode", False):
                 st.markdown("##### Detector Debug")
                 st.caption(f"Selected detector: {exercise}")
-                st.caption(f"Auto detect: {st.session_state.get('auto_detect_exercise', False)}")
-                st.caption(f"Detected exercise: {st.session_state.get('detected_exercise', 'Unknown')}")
-                st.caption(f"Exercise confidence: {st.session_state.get('exercise_confidence', 0.0)}")
                 st.caption(f"Pose visibility: {st.session_state.get('pose_visibility_score', 0.0)}")
                 st.caption(f"Detector name: {st.session_state.get('detector_name', 'Unavailable')}")
                 st.caption(f"Landmark confidence: {st.session_state.get('landmark_confidence', 0)}")
@@ -1406,34 +1109,19 @@ def main():
     if st.session_state.get("gamification_result") and not workout_started:
         render_reward_screen(st.session_state.gamification_result)
 
-    if app_mode == "Fitness Arena":
-        render_fitness_arena()
-    elif not workout_started and app_mode == "Solo Workout":
+    if not workout_started and app_mode == "Solo Workout":
         render_start_screen()
         render_exercise_tutorial(st.session_state.get("plan_exercise", "Squats"))
 
     if workout_started:
-        room_id = st.session_state.get("arena_room_id") if st.session_state.get("room_mode_active") else None
-        camera_mode = "room" if room_id else "solo"
         context = render_workout_camera(
             st.session_state.get("exercise_type", "Squats"),
-            mode=camera_mode,
-            room_id=room_id,
             quality=st.session_state.get("camera_quality", "Standard"),
             pose_profile="faster" if st.session_state.get("pose_model_profile", "Accuracy") == "Faster" else "accuracy",
             draw_pose_overlay=st.session_state.get("show_pose_overlay", False),
-            auto_detect_enabled=st.session_state.get("auto_detect_exercise", False),
-            pose_data_collection_enabled=st.session_state.get("pose_data_collection_enabled", False),
-            collector_context={
-                "user_id": st.session_state.get("user_id"),
-                "username": st.session_state.get("username"),
-            },
         )
 
         sync_metrics_update(context)
-
-        if st.session_state.get("auto_detect_exercise") and st.session_state.get("exercise_confidence", 0.0) < 0.55:
-            st.info("Move farther back and keep your full body visible.")
 
         if st.session_state.get("pose_visibility_score", 0.0) < 0.45:
             st.markdown(

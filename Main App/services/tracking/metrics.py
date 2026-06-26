@@ -4,8 +4,6 @@ from services.config.workout_config import METRICS_FIELDS
 from services.persistence.exercise_repository import add_exercise
 from services.tracking.form_score import update_form_score_state
 from services.coaching.voice_pipeline import queue_voice_feedback
-from services.multiplayer.room_service import add_room_event, get_room, maybe_mark_race_winner
-from services.multiplayer.score_service import should_update_room_score, upsert_room_score
 
 
 def sync_metrics_update(context):
@@ -51,7 +49,6 @@ def sync_metrics_update(context):
     st.session_state.pose_visibility_score = float(latest_metrics.get("pose_visibility_score", 0.0) or 0.0)
     st.session_state.pose_visibility = st.session_state.pose_visibility_score
     st.session_state.detector_name = latest_metrics.get("detector_name", "Unavailable")
-    st.session_state.auto_detect_exercise = bool(latest_metrics.get("auto_detect_enabled", st.session_state.get("auto_detect_exercise", False)))
 
     st.session_state.camera_status = latest_metrics.get("camera_status", "Camera active")
     st.session_state.detector_stage = latest_metrics.get("stage", st.session_state.get("detector_stage", "setup"))
@@ -124,7 +121,6 @@ def sync_metrics_update(context):
         **st.session_state.get("detector_debug", {}),
         "valid_workout": _is_current_workout_valid(active_exercise),
     }
-    _sync_room_score_if_needed(active_exercise, latest_metrics)
 
     last_saved_sets = st.session_state.get("last_saved_sets_completed", 0)
 
@@ -158,15 +154,6 @@ def sync_metrics_update(context):
 
         st.session_state.set_cycle_started_at = now_ts
         st.session_state.last_saved_sets_completed = sets_completed
-
-        if st.session_state.get("arena_room_id"):
-            add_room_event(
-                st.session_state.arena_room_id,
-                st.session_state.get("user_id"),
-                "set_completed",
-                f"{st.session_state.get('username', 'Athlete')} completed Set {sets_completed}.",
-            )
-
     if workout_completed and not st.session_state.get("last_notified_workout_complete", False):
         st.session_state.last_notified_workout_complete = True
 
@@ -215,41 +202,3 @@ def _is_current_workout_valid(exercise):
     return (reps > 0 and sets_completed > 0) or (reps_per_set > 0 and reps >= reps_per_set)
 
 
-def _sync_room_score_if_needed(exercise, latest_metrics):
-    room_id = st.session_state.get("arena_room_id")
-
-    if not room_id or not st.session_state.get("room_mode_active"):
-        return
-
-    room = get_room(room_id)
-
-    if not room or room["status"] != "active":
-        return
-
-    now_ts = time.time()
-    metrics = {
-        "reps": 0 if exercise == "Plank" else int(st.session_state.get("reps", 0) or 0),
-        "sets_completed": int(st.session_state.get("sets_completed", 0) or 0),
-        "hold_seconds": int(st.session_state.get("hold_seconds", 0) or 0),
-        "form_score": int(st.session_state.get("average_form_score") or st.session_state.get("form_score", 0) or 0),
-    }
-    previous = st.session_state.get("last_room_score_snapshot")
-
-    if not should_update_room_score(previous, metrics, exercise, now_ts):
-        return
-
-    upsert_room_score(
-        room,
-        st.session_state.get("user_id"),
-        st.session_state.get("username", "Athlete"),
-        metrics,
-        status="active",
-    )
-    st.session_state.last_room_score_update = now_ts
-    maybe_mark_race_winner(
-        room,
-        st.session_state.get("user_id"),
-        st.session_state.get("username", "Athlete"),
-        metrics,
-    )
-    st.session_state.last_room_score_snapshot = {**metrics, "updated_at": now_ts}

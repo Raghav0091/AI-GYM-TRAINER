@@ -26,29 +26,17 @@ def camera_constraints(quality="Standard"):
 
 
 def stable_webrtc_key(mode="solo", room_id=None):
-    if mode == "room" and room_id:
-        return f"webrtc-room-{room_id}"
-
-    return "webrtc-solo-workout"
+    return "ai-gym-live-camera"
 
 
 def render_workout_camera(
     exercise_name,
-    mode="solo",
-    room_id=None,
     quality="Standard",
     draw_pose_overlay=False,
-    auto_detect_enabled=False,
-    pose_data_collection_enabled=False,
-    collector_context=None,
     pose_profile="accuracy",
 ):
-    """Render one stable WebRTC camera component for the active workout.
-
-    Future realtime backends should keep this camera local and only sync derived
-    metrics through a room service, Supabase Realtime, or FastAPI WebSocket layer.
-    """
-    key = stable_webrtc_key(mode, room_id)
+    """Render one stable WebRTC camera component for the active workout."""
+    key = stable_webrtc_key()
     st.session_state.webrtc_key_used = key
     st.session_state.selected_exercise_locked = exercise_name
     st.session_state.camera_quality_used = quality
@@ -75,8 +63,6 @@ def render_workout_camera(
     if processor:
         processor.set_exercise(exercise_name)
         processor.set_draw_pose_overlay(draw_pose_overlay)
-        processor.set_auto_detect_enabled(auto_detect_enabled)
-        processor.set_pose_data_collection(pose_data_collection_enabled, collector_context or {})
         processor.set_quality_profile(quality)
         processor.set_pose_profile(pose_profile)
         st.session_state.camera_processor_class = processor.__class__.__name__
@@ -130,9 +116,6 @@ def render_camera_debug_panel(context=None):
     st.caption(f"Camera state: {st.session_state.get('camera_state', 'idle')}")
     st.caption(f"WebRTC playing: {playing}")
     st.caption(f"Selected exercise: {st.session_state.get('exercise_type', 'N/A')}")
-    st.caption(f"Auto detect: {st.session_state.get('auto_detect_exercise', False)}")
-    st.caption(f"Detected exercise: {st.session_state.get('detected_exercise', 'Unknown')}")
-    st.caption(f"Exercise confidence: {st.session_state.get('exercise_confidence', 0.0)}")
     st.caption(f"Pose visibility: {st.session_state.get('pose_visibility_score', 0.0)}")
     st.caption(f"Detector class: {snapshot.get('detector_class') or st.session_state.get('camera_processor_class', 'N/A')}")
     st.caption(f"Last frame: {_format_age(snapshot.get('last_frame_at'))}")
