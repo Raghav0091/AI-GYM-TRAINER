@@ -30,56 +30,10 @@ def calculate_form_score(exercise, metrics):
             _status_score(metrics.get("hip_status"), {"LEVEL": 100, "SAGGING": 55, "PIKED UP": 65, "N/A": 70}),
             _angle_score(metrics.get("elbow_angle"), ideal=90, tolerance=70),
         ]
-    elif exercise == "Biceps Curls (Dumbbell)":
-        scores = [
-            _status_score(metrics.get("swing_status"), {"NO SWING": 100, "SWINGING": 50, "N/A": 70}),
-            _status_score(metrics.get("shoulder_status"), {"STABLE": 100, "ELBOW DRIFTING": 55, "N/A": 70}),
-            _angle_score(metrics.get("elbow_angle"), ideal=60, tolerance=80),
-        ]
-    elif exercise == "Shoulder Press":
-        scores = [
-            _status_score(metrics.get("back_arch_status"), {"NEUTRAL": 100, "SLIGHT ARCH": 75, "EXCESSIVE ARCH": 45, "N/A": 70}),
-            _status_score(metrics.get("extension_status"), {"FULL EXTENSION": 100, "NEARLY EXTENDED": 85, "PRESSING": 75, "START POSITION": 70, "N/A": 70}),
-            _angle_score(metrics.get("elbow_angle"), ideal=165, tolerance=75),
-        ]
-    elif exercise == "Lunges":
-        scores = [
-            _status_score(metrics.get("balance_status"), {"BALANCED": 100, "OFF BALANCE": 50, "N/A": 70}),
-            _angle_score(metrics.get("front_knee_angle"), ideal=95, tolerance=60),
-            _angle_score(metrics.get("torso_angle"), ideal=165, tolerance=45),
-        ]
-    elif exercise == "Jumping Jacks":
-        scores = [
-            _status_score(metrics.get("arm_status"), {"HANDS UP": 100, "RAISE ARMS": 60, "N/A": 70}),
-            _status_score(metrics.get("foot_status"), {"FEET APART": 100, "FEET TOGETHER": 75, "N/A": 70}),
-            _status_score(metrics.get("jumping_jack_stage"), {"OPEN": 100, "CLOSED": 85, "N/A": 70}),
-        ]
-    elif exercise == "High Knees":
-        scores = [
-            _status_score(metrics.get("knee_height"), {"GOOD HEIGHT": 100, "LOW KNEES": 55, "N/A": 70}),
-            _status_score(metrics.get("pace_status"), {"ALTERNATING": 100, "RESET": 75, "N/A": 70}),
-        ]
-    elif exercise == "Crunches":
-        scores = [
-            _status_score(metrics.get("range_status"), {"GOOD CRUNCH": 100, "LOW RANGE": 60, "N/A": 70}),
-            _status_score(metrics.get("neck_status"), {"NEUTRAL NECK": 100, "CHECK POSITION": 65, "N/A": 70}),
-            _angle_score(metrics.get("torso_angle"), ideal=115, tolerance=55),
-        ]
-    elif exercise == "Sit-ups":
-        scores = [
-            _status_score(metrics.get("range_status"), {"FULL SIT-UP": 100, "LOW RANGE": 55, "N/A": 70}),
-            _status_score(metrics.get("control_status"), {"CONTROLLED": 100, "CHECK POSITION": 65, "N/A": 70}),
-            _angle_score(metrics.get("torso_angle"), ideal=95, tolerance=60),
-        ]
     elif exercise == "Plank":
         scores = [
             _status_score(metrics.get("body_alignment"), {"STRAIGHT": 100, "SLIGHT BEND": 78, "POOR FORM": 45, "N/A": 70}),
             _status_score(metrics.get("hip_status"), {"LEVEL": 100, "SAGGING": 55, "PIKED UP": 60, "N/A": 70}),
-        ]
-    elif exercise == "Mountain Climbers":
-        scores = [
-            _status_score(metrics.get("knee_drive"), {"GOOD DRIVE": 100, "LOW DRIVE": 55, "N/A": 70}),
-            _status_score(metrics.get("hip_status"), {"LEVEL": 100, "HIPS HIGH": 60, "N/A": 70}),
         ]
     else:
         scores = [70]

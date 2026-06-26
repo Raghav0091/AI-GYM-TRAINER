@@ -31,17 +31,15 @@ class LLMCoach:
 
         return text
 
-    def summarize_session(self, exercise, sets_completed, total_reps, form_score, xp_earned=0, current_level=1):
+    def summarize_session(self, exercise, sets_completed, total_reps, form_score):
         prompt = (
             "Create a short workout session summary for the app UI. "
             "Use 5 concise bullet lines covering: exercise name, sets completed, "
-            "total reps, form score, XP earned, level progress, strengths, improvement tips, and next-session suggestion.\n"
+            "total reps, form score, strengths, improvement tips, and next-session suggestion.\n"
             f"Exercise: {exercise}\n"
             f"Sets completed: {sets_completed}\n"
             f"Total reps: {total_reps}\n"
-            f"Form score: {form_score}/100\n"
-            f"XP earned: {xp_earned}\n"
-            f"Current level: {current_level}"
+            f"Form score: {form_score}/100"
         )
 
         response = self.client.chat.completions.create(

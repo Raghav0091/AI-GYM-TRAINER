@@ -31,5 +31,7 @@ Main App/data/pose_samples/
 
 .env
 *.env
+Main App/.env
 .streamlit/secrets.toml
+Main App/.streamlit/secrets.toml
 .vscode/

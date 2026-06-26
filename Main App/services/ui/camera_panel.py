@@ -25,7 +25,7 @@ def camera_constraints(quality="Standard"):
     }
 
 
-def stable_webrtc_key(mode="solo", room_id=None):
+def stable_webrtc_key():
     return "ai-gym-live-camera"
 
 
@@ -126,7 +126,6 @@ def render_camera_debug_panel(context=None):
     st.caption(f"Skipped frames: {snapshot.get('skipped_frames', st.session_state.get('skipped_frames', 0))}")
     st.caption(f"Avg processing: {snapshot.get('average_processing_ms', st.session_state.get('average_processing_ms', 0.0))}ms")
     st.caption(f"Last metrics update: {_format_age(st.session_state.get('last_ui_metrics_update'))}")
-    st.caption(f"Last room score update: {_format_age(st.session_state.get('last_room_score_update'))}")
     st.caption(f"Last DB write: {_format_age(st.session_state.get('last_db_write'))}")
     st.caption(f"Last voice feedback: {_format_age(st.session_state.get('last_voice_feedback'))}")
     st.caption(f"WebRTC key: {st.session_state.get('webrtc_key_used', 'N/A')}")
