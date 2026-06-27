@@ -59,7 +59,8 @@ class PlankDetector(BaseExercise):
         else:
             hip_status = "PIKED UP"
 
-        valid_hold = key_visible and body_alignment in ["STRAIGHT", "SLIGHT BEND"] and hip_status == "LEVEL"
+        # ponytail: keep timer movement-tracking tolerant; strictness is handled in form scoring.
+        valid_hold = key_visible
 
         if valid_hold and self._hold_started_at is None:
             self._hold_started_at = time.time()
@@ -87,6 +88,7 @@ class PlankDetector(BaseExercise):
             "reps": 0,
             "hold_seconds": hold_seconds,
             "body_alignment": body_alignment,
+            "body_alignment_angle": int(body_angle),
             "hip_status": hip_status,
             "stage": self.stage,
             "issue": issue,
@@ -96,5 +98,12 @@ class PlankDetector(BaseExercise):
             "pose_visibility": round(sum(landmarks[idx].visibility for idx in [shoulder_idx, hip_idx, ankle_idx]) / 3, 3),
             "camera_guidance": "Side view is best for plank" if key_visible else "Show shoulders, hips, and ankles",
             "processing_status": "tracking" if key_visible else "low visibility",
-            "debug": {"required_body_parts": ["shoulders", "hips", "ankles"]},
+            "debug": {
+                "required_body_parts": ["shoulders", "hips", "ankles"],
+                "body_alignment_angle": int(body_angle),
+                "hip_status": hip_status,
+                "hold_seconds": hold_seconds,
+                "pose_visibility": round(sum(landmarks[idx].visibility for idx in [shoulder_idx, hip_idx, ankle_idx]) / 3, 3),
+                "issue": issue,
+            },
         }

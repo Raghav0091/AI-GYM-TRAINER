@@ -6,6 +6,7 @@ class SquatDetector(BaseExercise):
     DOWN_THRESHOLD = 100   
     UP_THRESHOLD = 160     
     MIN_VISIBILITY = 0.7
+    LEAN_WARNING_ANGLE = 50
 
     LEFT_HIP = 23
     LEFT_KNEE = 25
@@ -32,6 +33,7 @@ class SquatDetector(BaseExercise):
         hip_idx, knee_idx, ankle_idx, shoulder_idx = side_points
         knee_angle = smooth_value("squat_knee_angle", angle_from_indices(landmarks, hip_idx, knee_idx, ankle_idx))
         back_angle = smooth_value("squat_back_angle", angle_from_indices(landmarks, shoulder_idx, hip_idx, knee_idx))
+        torso_lean = max(0.0, 180.0 - float(back_angle or 0.0))
         full_body_visibility = get_landmark_visibility(landmarks, [hip_idx, knee_idx, ankle_idx, shoulder_idx])
         key_landmark_visible = full_body_visibility >= self.MIN_VISIBILITY
 
@@ -50,11 +52,16 @@ class SquatDetector(BaseExercise):
         else:
             depth_status = "N/A"
 
-        issue = None if key_landmark_visible else "Required body parts are not visible"
+        issue = None
+        if not key_landmark_visible:
+            issue = "Required body parts are not visible"
+        elif torso_lean > self.LEAN_WARNING_ANGLE:
+            issue = "Too much forward lean. Keep chest up and core braced."
         return {
             "reps": self.reps,
             "knee_angle": int(knee_angle),
             "back_angle": int(back_angle),
+            "torso_lean": int(torso_lean),
             "depth_status": depth_status,
             "stage": self.stage or "setup",
             "landmark_confidence": round(visibility, 2),
@@ -65,6 +72,13 @@ class SquatDetector(BaseExercise):
             "camera_status": "Tracking" if key_landmark_visible else "Adjust camera",
             "issue": issue,
             "is_valid_rep": key_landmark_visible and self.stage == "up",
-            "debug": {"required_body_parts": ["hips", "knees", "ankles", "shoulders"]},
+            "debug": {
+                "required_body_parts": ["hips", "knees", "ankles", "shoulders"],
+                "knee_angle": int(knee_angle),
+                "torso_lean": int(torso_lean),
+                "depth_status": depth_status,
+                "pose_visibility": round(full_body_visibility, 3),
+                "issue": issue,
+            },
         }
     

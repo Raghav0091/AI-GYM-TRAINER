@@ -7,6 +7,7 @@ class PushUpDetector(BaseExercise):
     UP_THRESHOLD = 160
     MIN_VISIBILITY = 0.7
     HIP_SAG_TOLERANCE = 0.08
+    HALF_REP_THRESHOLD = 115
 
     LEFT_SHOULDER = 11
     LEFT_ELBOW = 13
@@ -67,7 +68,17 @@ class PushUpDetector(BaseExercise):
         else:
             hip_status = "PIKED UP"
 
-        issue = None if key_landmarks_visible else "Required body parts are not visible"
+        issue = None
+        if not key_landmarks_visible:
+            issue = "Required body parts are not visible"
+        elif elbow_angle > self.HALF_REP_THRESHOLD:
+            issue = "Go deeper. Half push-up depth detected."
+        elif hip_status == "SAGGING":
+            issue = "Hips are sagging. Keep a straight plank line."
+        elif hip_status == "PIKED UP":
+            issue = "Hips are too high. Lower to a straight line."
+
+        pose_visibility = get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx, hip_idx, ankle_idx])
         return {
             "reps": self.reps,
             "elbow_angle": int(elbow_angle),
@@ -75,13 +86,20 @@ class PushUpDetector(BaseExercise):
             "hip_status": hip_status,
             "stage": self.stage or "setup",
             "landmark_confidence": round(visibility, 2),
-            "camera_guidance": "Side view good" if key_landmarks_visible else "Show shoulders, wrists, hips, and ankles",
+            "camera_guidance": "Side view preferred for push-up form" if key_landmarks_visible else "Show shoulders, wrists, hips, and ankles",
             "processing_status": "tracking" if key_landmarks_visible else "low visibility",
             "pose_detected": key_landmarks_visible,
-            "pose_visibility": round(get_landmark_visibility(landmarks, [shoulder_idx, elbow_idx, wrist_idx, hip_idx, ankle_idx]), 3),
+            "pose_visibility": round(pose_visibility, 3),
             "camera_status": "Tracking" if key_landmarks_visible else "Adjust camera",
             "issue": issue,
             "is_valid_rep": key_landmarks_visible and self.stage == "up",
-            "debug": {"required_body_parts": ["shoulders", "elbows", "wrists", "hips", "ankles"]},
+            "debug": {
+                "required_body_parts": ["shoulders", "elbows", "wrists", "hips", "ankles"],
+                "elbow_angle": int(elbow_angle),
+                "body_alignment": body_alignment,
+                "hip_status": hip_status,
+                "pose_visibility": round(pose_visibility, 3),
+                "issue": issue,
+            },
         }
     
