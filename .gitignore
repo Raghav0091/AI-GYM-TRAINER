@@ -35,3 +35,4 @@ Main App/.env
 .streamlit/secrets.toml
 Main App/.streamlit/secrets.toml
 .vscode/
+.cursor/settings.json
